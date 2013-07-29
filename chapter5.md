@@ -42,21 +42,21 @@
 //  自杀的蜗牛模式
 //
 #include "czmq.h"
- 
+
 //  ---------------------------------------------------------------------
 //  该订阅者会连接至发布者，接收所有的消息，
 //  运行过程中它会暂停一会儿，模拟复杂的运算过程，
 //  当发现收到的消息超过1秒的延迟时，就自杀。
- 
+
 #define MAX_ALLOWED_DELAY   1000    //  毫秒
- 
+
 static void
 subscriber (void *args, zctx_t *ctx, void *pipe)
 {
     //  订阅所有消息
     void *subscriber = zsocket_new (ctx, ZMQ_SUB);
     zsocket_connect (subscriber, "tcp://localhost:5556");
- 
+
     //  获取并处理消息
     while (1) {
         char *string = zstr_recv (subscriber);
@@ -64,7 +64,7 @@ subscriber (void *args, zctx_t *ctx, void *pipe)
         int terms = sscanf (string, "%" PRId64, &clock);
         assert (terms == 1);
         free (string);
- 
+
         //  自杀逻辑
         if (zclock_time () - clock > MAX_ALLOWED_DELAY) {
             fprintf (stderr, "E: 订阅者无法跟进, 取消中\n");
@@ -75,18 +75,18 @@ subscriber (void *args, zctx_t *ctx, void *pipe)
     }
     zstr_send (pipe, "订阅者中止");
 }
- 
- 
+
+
 //  ---------------------------------------------------------------------
 //  发布者每毫秒发送一条用时间戳标记的消息
- 
+
 static void
 publisher (void *args, zctx_t *ctx, void *pipe)
 {
     //  准备发布者
     void *publisher = zsocket_new (ctx, ZMQ_PUB);
     zsocket_bind (publisher, "tcp://*:5556");
- 
+
     while (1) {
         //  发送当前时间（毫秒）给订阅者
         char string [20];
@@ -100,8 +100,8 @@ publisher (void *args, zctx_t *ctx, void *pipe)
         zclock_sleep (1);            //  等待1毫秒
     }
 }
- 
- 
+
+
 //  下面的代码会启动一个订阅者和一个发布者，当订阅者死亡时停止运行
 //
 int main (void)
@@ -139,7 +139,7 @@ int main (void)
 
 这样一来，订阅者看上去就像是一个队列装置，我们可以用各种方式去连接队列装置和worker。如我们建立单向的通信，每个worker都是相同的，可以使用PUSH和PULL套接字，分发的工作就交给ZMQ吧。这是最简单也是最快速的方式：
 
-![1](https://github.com/haozu/zguide-cn/raw/master/images/chapter5_1.png)
+![1](./images/chapter5_1.png)
 
 订阅者和发布者之间的通信使用TCP或PGM协议，订阅者和worker的通信由于是在同一个进程中完成的，所以使用inproc协议。
 
@@ -148,7 +148,7 @@ int main (void)
 很多高性能产品使用的方案是分片，就是将工作量拆分成独立并行的流。如，一半的专题数据由一个流媒体传输，另一半由另一个流媒体传输。我们可以建立更多的流媒体，但如果CPU核心数不变，那就没有必要了。
 让我们看看如何将工作量分片为两个流：
 
-![2](https://github.com/haozu/zguide-cn/raw/master/images/chapter5_2.png)
+![2](./images/chapter5_2.png)
 
 要让两个流全速工作，需要这样配置ZMQ：
 
@@ -200,7 +200,7 @@ int main (void)
 
 我们会分阶段实施克隆模式。首先，我们看看如何从服务器发送键值更新事件给所有的客户端。我们将第一章中使用的天气服务模型进行改造，以键值对的方式发送信息，并让客户端使用哈希表来保存：
 
-![3](https://github.com/haozu/zguide-cn/raw/master/images/chapter5_3.png)
+![3](./images/chapter5_3.png)
 
 以下是服务端代码：
 
@@ -210,10 +210,10 @@ int main (void)
 //
 //  克隆模式服务端模型1
 //
- 
+
 //  让我们直接编译，不生成类库
 #include "kvsimple.c"
- 
+
 int main (void)
 {
     //  准备上下文和PUB套接字
@@ -221,11 +221,11 @@ int main (void)
     void *publisher = zsocket_new (ctx, ZMQ_PUB);
     zsocket_bind (publisher, "tcp://*:5556");
     zclock_sleep (200);
- 
+
     zhash_t *kvmap = zhash_new ();
     int64_t sequence = 0;
     srandom ((unsigned) time (NULL));
- 
+
     while (!zctx_interrupted) {
         //  使用键值对分发消息
         kvmsg_t *kvmsg = kvmsg_new (++sequence);
@@ -249,20 +249,20 @@ int main (void)
 //
 //  克隆模式客户端模型1
 //
- 
+
 //  让我们直接编译，不生成类库
 #include "kvsimple.c"
- 
+
 int main (void)
 {
     //  准备上下文和SUB套接字
     zctx_t *ctx = zctx_new ();
     void *updates = zsocket_new (ctx, ZMQ_SUB);
     zsocket_connect (updates, "tcp://localhost:5556");
- 
+
     zhash_t *kvmap = zhash_new ();
     int64_t sequence = 0;
- 
+
     while (TRUE) {
         kvmsg_t *kvmsg = kvmsg_recv (updates);
         if (!kvmsg)
@@ -290,35 +290,35 @@ int main (void)
 ```c
 /*  =====================================================================
     kvsimple - simple key-value message class for example applications
- 
+
     ---------------------------------------------------------------------
     Copyright (c) 1991-2011 iMatix Corporation <www.imatix.com>
     Copyright other contributors as noted in the AUTHORS file.
- 
+
     This file is part of the ZeroMQ Guide: http://zguide.zeromq.org
- 
+
     This is free software; you can redistribute it and/or modify it under
     the terms of the GNU Lesser General Public License as published by
     the Free Software Foundation; either version 3 of the License, or (at
     your option) any later version.
- 
+
     This software is distributed in the hope that it will be useful, but
     WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
     Lesser General Public License for more details.
- 
+
     You should have received a copy of the GNU Lesser General Public
     License along with this program. If not, see
     <http://www.gnu.org/licenses/>.
     =====================================================================
 */
- 
+
 #include "kvsimple.h"
 #include "zlist.h"
- 
+
 //  键是一个短字符串
 #define KVMSG_KEY_MAX   255
- 
+
 //  消息被格式化成三帧
 //  frame 0: 键（ZMQ字符串）
 //  frame 1: 编号（8个字节，按顺序排列）
@@ -327,7 +327,7 @@ int main (void)
 #define FRAME_SEQ       1
 #define FRAME_BODY      2
 #define KVMSG_FRAMES    3
- 
+
 //  类结构
 struct _kvmsg {
     //  消息中某帧是否存在
@@ -337,26 +337,26 @@ struct _kvmsg {
     //  将键转换为C语言字符串
     char key [KVMSG_KEY_MAX + 1];
 };
- 
- 
+
+
 //  ---------------------------------------------------------------------
 //  构造函数，设置编号
- 
+
 kvmsg_t *
 kvmsg_new (int64_t sequence)
 {
     kvmsg_t
         *self;
- 
+
     self = (kvmsg_t *) zmalloc (sizeof (kvmsg_t));
     kvmsg_set_sequence (self, sequence);
     return self;
 }
- 
- 
+
+
 //  ---------------------------------------------------------------------
 //  析构函数
- 
+
 //  释放消息中的帧，可供zhash_freefn()函数调用
 void
 kvmsg_free (void *ptr)
@@ -368,12 +368,12 @@ kvmsg_free (void *ptr)
         for (frame_nbr = 0; frame_nbr < KVMSG_FRAMES; frame_nbr++)
             if (self->present [frame_nbr])
                 zmq_msg_close (&self->frame [frame_nbr]);
- 
+
         //  释放对象本身
         free (self);
     }
 }
- 
+
 void
 kvmsg_destroy (kvmsg_t **self_p)
 {
@@ -383,17 +383,17 @@ kvmsg_destroy (kvmsg_t **self_p)
         *self_p = NULL;
     }
 }
- 
- 
+
+
 //  ---------------------------------------------------------------------
 //  从套接字中读取键值消息，返回kvmsg实例
- 
+
 kvmsg_t *
 kvmsg_recv (void *socket)
 {
     assert (socket);
     kvmsg_t *self = kvmsg_new (0);
- 
+
     //  读取所有帧，出错则销毁对象
     int frame_nbr;
     for (frame_nbr = 0; frame_nbr < KVMSG_FRAMES; frame_nbr++) {
@@ -414,17 +414,17 @@ kvmsg_recv (void *socket)
     }
     return self;
 }
- 
- 
+
+
 //  ---------------------------------------------------------------------
 //  向套接字发送键值对消息，不检验消息帧的内容
- 
+
 void
 kvmsg_send (kvmsg_t *self, void *socket)
 {
     assert (self);
     assert (socket);
- 
+
     int frame_nbr;
     for (frame_nbr = 0; frame_nbr < KVMSG_FRAMES; frame_nbr++) {
         zmq_msg_t copy;
@@ -436,11 +436,11 @@ kvmsg_send (kvmsg_t *self, void *socket)
         zmq_msg_close (&copy);
     }
 }
- 
- 
+
+
 //  ---------------------------------------------------------------------
 //  从消息中获取键值，不存在则返回NULL
- 
+
 char *
 kvmsg_key (kvmsg_t *self)
 {
@@ -459,11 +459,11 @@ kvmsg_key (kvmsg_t *self)
     else
         return NULL;
 }
- 
- 
+
+
 //  ---------------------------------------------------------------------
 //  返回消息的编号
- 
+
 int64_t
 kvmsg_sequence (kvmsg_t *self)
 {
@@ -484,11 +484,11 @@ kvmsg_sequence (kvmsg_t *self)
     else
         return 0;
 }
- 
- 
+
+
 //  ---------------------------------------------------------------------
 //  返回消息内容，不存在则返回NULL
- 
+
 byte *
 kvmsg_body (kvmsg_t *self)
 {
@@ -498,11 +498,11 @@ kvmsg_body (kvmsg_t *self)
     else
         return NULL;
 }
- 
- 
+
+
 //  ---------------------------------------------------------------------
 //  返回消息内容的大小
- 
+
 size_t
 kvmsg_size (kvmsg_t *self)
 {
@@ -512,11 +512,11 @@ kvmsg_size (kvmsg_t *self)
     else
         return 0;
 }
- 
- 
+
+
 //  ---------------------------------------------------------------------
 //  设置消息的键
- 
+
 void
 kvmsg_set_key (kvmsg_t *self, char *key)
 {
@@ -528,11 +528,11 @@ kvmsg_set_key (kvmsg_t *self, char *key)
     memcpy (zmq_msg_data (msg), key, strlen (key));
     self->present [FRAME_KEY] = 1;
 }
- 
- 
+
+
 //  ---------------------------------------------------------------------
 //  设置消息的编号
- 
+
 void
 kvmsg_set_sequence (kvmsg_t *self, int64_t sequence)
 {
@@ -541,7 +541,7 @@ kvmsg_set_sequence (kvmsg_t *self, int64_t sequence)
     if (self->present [FRAME_SEQ])
         zmq_msg_close (msg);
     zmq_msg_init_size (msg, 8);
- 
+
     byte *source = zmq_msg_data (msg);
     source [0] = (byte) ((sequence >> 56) & 255);
     source [1] = (byte) ((sequence >> 48) & 255);
@@ -551,14 +551,14 @@ kvmsg_set_sequence (kvmsg_t *self, int64_t sequence)
     source [5] = (byte) ((sequence >> 16) & 255);
     source [6] = (byte) ((sequence >> 8)  & 255);
     source [7] = (byte) ((sequence)       & 255);
- 
+
     self->present [FRAME_SEQ] = 1;
 }
- 
- 
+
+
 //  ---------------------------------------------------------------------
 //  设置消息内容
- 
+
 void
 kvmsg_set_body (kvmsg_t *self, byte *body, size_t size)
 {
@@ -570,46 +570,46 @@ kvmsg_set_body (kvmsg_t *self, byte *body, size_t size)
     zmq_msg_init_size (msg, size);
     memcpy (zmq_msg_data (msg), body, size);
 }
- 
- 
+
+
 //  ---------------------------------------------------------------------
 //  使用printf()格式设置消息键
- 
+
 void
 kvmsg_fmt_key (kvmsg_t *self, char *format, ...)
 {
     char value [KVMSG_KEY_MAX + 1];
     va_list args;
- 
+
     assert (self);
     va_start (args, format);
     vsnprintf (value, KVMSG_KEY_MAX, format, args);
     va_end (args);
     kvmsg_set_key (self, value);
 }
- 
- 
+
+
 //  ---------------------------------------------------------------------
 //  使用springf()格式设置消息内容
- 
+
 void
 kvmsg_fmt_body (kvmsg_t *self, char *format, ...)
 {
     char value [255 + 1];
     va_list args;
- 
+
     assert (self);
     va_start (args, format);
     vsnprintf (value, 255, format, args);
     va_end (args);
     kvmsg_set_body (self, (byte *) value, strlen (value));
 }
- 
- 
+
+
 //  ---------------------------------------------------------------------
 //  若kvmsg结构的键值均存在，则存入哈希表；
 //  如果kvmsg结构已没有引用，则自动销毁和释放。
- 
+
 void
 kvmsg_store (kvmsg_t **self_p, zhash_t *hash)
 {
@@ -625,11 +625,11 @@ kvmsg_store (kvmsg_t **self_p, zhash_t *hash)
         *self_p = NULL;
     }
 }
- 
- 
+
+
 //  ---------------------------------------------------------------------
 //  将消息内容打印至标准错误输出，用以调试和跟踪
- 
+
 void
 kvmsg_dump (kvmsg_t *self)
 {
@@ -651,19 +651,19 @@ kvmsg_dump (kvmsg_t *self)
     else
         fprintf (stderr, "NULL message\n");
 }
- 
- 
+
+
 //  ---------------------------------------------------------------------
 //  测试用例
- 
+
 int
 kvmsg_test (int verbose)
 {
     kvmsg_t
         *kvmsg;
- 
+
     printf (" * kvmsg: ");
- 
+
     //  准备上下文和套接字
     zctx_t *ctx = zctx_new ();
     void *output = zsocket_new (ctx, ZMQ_DEALER);
@@ -672,9 +672,9 @@ kvmsg_test (int verbose)
     void *input = zsocket_new (ctx, ZMQ_DEALER);
     rc = zmq_connect (input, "ipc://kvmsg_selftest.ipc");
     assert (rc == 0);
- 
+
     zhash_t *kvmap = zhash_new ();
- 
+
     //  测试简单消息的发送和接受
     kvmsg = kvmsg_new (1);
     kvmsg_set_key  (kvmsg, "key");
@@ -683,17 +683,17 @@ kvmsg_test (int verbose)
         kvmsg_dump (kvmsg);
     kvmsg_send (kvmsg, output);
     kvmsg_store (&kvmsg, kvmap);
- 
+
     kvmsg = kvmsg_recv (input);
     if (verbose)
         kvmsg_dump (kvmsg);
     assert (streq (kvmsg_key (kvmsg), "key"));
     kvmsg_store (&kvmsg, kvmap);
- 
+
     //  关闭并销毁所有对象
     zhash_destroy (&kvmap);
     zctx_destroy (&ctx);
- 
+
     printf ("OK\n");
     return 0;
 }
@@ -707,7 +707,7 @@ kvmsg_test (int verbose)
 
 为了让后续连接的（或从故障中恢复的）客户端能够获取服务器上的状态信息，需要让它在连接时获取一份快照。正如我们将“消息”的概念简化为“已编号的键值对”，我们也可以将“状态”简化为“一个哈希表”。为获取服务端状态，客户端会打开一个REQ套接字进行请求：
 
-![4](https://github.com/haozu/zguide-cn/raw/master/images/chapter5_4.png)
+![4](./images/chapter5_4.png)
 
 我们需要考虑时间的问题，因为生成快照是需要一定时间的，我们需要知道应从哪个更新事件开始更新快照，服务端是不知道何时有更新事件的。一种方法是先开始订阅消息，收到第一个消息之后向服务端请求“将该条更新之前的所有内容发送给”。这样一来，服务器需要为每一次更新保存一份快照，这显然是不现实的。
 
@@ -729,27 +729,27 @@ kvmsg_test (int verbose)
 //
 //  克隆模式 - 服务端 - 模型2
 //
- 
+
 //  让我们直接编译，不创建类库
 #include "kvsimple.c"
- 
+
 static int s_send_single (char *key, void *data, void *args);
 static void state_manager (void *args, zctx_t *ctx, void *pipe);
- 
+
 int main (void)
 {
     //  准备套接字和上下文
     zctx_t *ctx = zctx_new ();
     void *publisher = zsocket_new (ctx, ZMQ_PUB);
     zsocket_bind (publisher, "tcp://*:5557");
- 
+
     int64_t sequence = 0;
     srandom ((unsigned) time (NULL));
- 
+
     //  开启状态管理器，并等待同步信号
     void *updates = zthread_fork (ctx, state_manager, NULL);
     free (zstr_recv (updates));
- 
+
     while (!zctx_interrupted) {
         //  分发键值消息
         kvmsg_t *kvmsg = kvmsg_new (++sequence);
@@ -763,13 +763,13 @@ int main (void)
     zctx_destroy (&ctx);
     return 0;
 }
- 
+
 //  快照请求方信息
 typedef struct {
     void *socket;           //  用于发送快照的ROUTER套接字
     zframe_t *identity;     //  请求方的标识
 } kvroute_t;
- 
+
 //  发送快照中单个键值对
 //  使用kvmsg对象作为载体
 static int
@@ -783,18 +783,18 @@ s_send_single (char *key, void *data, void *args)
     kvmsg_send (kvmsg, kvroute->socket);
     return 0;
 }
- 
+
 //  该线程维护服务端状态，并处理快照请求。
 //
 static void
 state_manager (void *args, zctx_t *ctx, void *pipe)
 {
     zhash_t *kvmap = zhash_new ();
- 
+
     zstr_send (pipe, "READY");
     void *snapshot = zsocket_new (ctx, ZMQ_ROUTER);
     zsocket_bind (snapshot, "tcp://*:5556");
- 
+
     zmq_pollitem_t items [] = {
         { pipe, 0, ZMQ_POLLIN, 0 },
         { snapshot, 0, ZMQ_POLLIN, 0 }
@@ -804,7 +804,7 @@ state_manager (void *args, zctx_t *ctx, void *pipe)
         int rc = zmq_poll (items, 2, -1);
         if (rc == -1 && errno == ETERM)
             break;              //  上下文异常
- 
+
         //  等待主线程的更新事件
         if (items [0].revents & ZMQ_POLLIN) {
             kvmsg_t *kvmsg = kvmsg_recv (pipe);
@@ -818,7 +818,7 @@ state_manager (void *args, zctx_t *ctx, void *pipe)
             zframe_t *identity = zframe_recv (snapshot);
             if (!identity)
                 break;          //  中断
- 
+
             //  请求内容在第二帧中
             char *request = zstr_recv (snapshot);
             if (streq (request, "ICANHAZ?"))
@@ -829,10 +829,10 @@ state_manager (void *args, zctx_t *ctx, void *pipe)
             }
             //  发送快照给客户端
             kvroute_t routing = { snapshot, identity };
- 
+
             //  逐项发送
             zhash_foreach (kvmap, s_send_single, &routing);
- 
+
             //  发送结束标识，内含快照版本号
             printf ("正在发送快照，版本号 %d\n", (int) sequence);
             zframe_send (&identity, snapshot, ZFRAME_MORE);
@@ -855,10 +855,10 @@ state_manager (void *args, zctx_t *ctx, void *pipe)
 //
 // 克隆模式 - 客户端 - 模型2
 //
- 
+
 //  让我们直接编译，不生成类库
 #include "kvsimple.c"
- 
+
 int main (void)
 {
     //  准备上下文和SUB套接字
@@ -867,9 +867,9 @@ int main (void)
     zsocket_connect (snapshot, "tcp://localhost:5556");
     void *subscriber = zsocket_new (ctx, ZMQ_SUB);
     zsocket_connect (subscriber, "tcp://localhost:5557");
- 
+
     zhash_t *kvmap = zhash_new ();
- 
+
     //  获取快照
     int64_t sequence = 0;
     zstr_send (snapshot, "ICANHAZ?");
@@ -926,7 +926,7 @@ int main (void)
 
 客户端的键值更新事件会通过PUSH-PULL套接字传达给服务端：
 
-![5](https://github.com/haozu/zguide-cn/raw/master/images/chapter5_5.png)
+![5](./images/chapter5_5.png)
 
 我们为什么不让客户端直接将更新信息发送给其他客户端呢？虽然这样做可以减少延迟，但是就无法为更新事件添加自增的唯一编号了。很多应用程序都需要更新事件以某种方式排序，只有将消息发给服务端，由服务端分发更新消息，才能保证更新事件的顺序。
 
@@ -939,19 +939,19 @@ int main (void)
 //
 //  克隆模式 服务端 模型3
 //
- 
+
 //  直接编译，不创建类库
 #include "kvsimple.c"
- 
+
 static int s_send_single (char *key, void *data, void *args);
- 
+
 //  快照请求方信息
 typedef struct {
     void *socket;           //  ROUTER套接字
     zframe_t *identity;     //  请求方标识
 } kvroute_t;
- 
- 
+
+
 int main (void)
 {
     //  准备上下文和套接字
@@ -962,17 +962,17 @@ int main (void)
     zsocket_bind (publisher, "tcp://*:5557");
     void *collector = zsocket_new (ctx, ZMQ_PULL);
     zsocket_bind (collector, "tcp://*:5558");
- 
+
     int64_t sequence = 0;
     zhash_t *kvmap = zhash_new ();
- 
+
     zmq_pollitem_t items [] = {
         { collector, 0, ZMQ_POLLIN, 0 },
         { snapshot, 0, ZMQ_POLLIN, 0 }
     };
     while (!zctx_interrupted) {
         int rc = zmq_poll (items, 2, 1000 * ZMQ_POLL_MSEC);
- 
+
         //  执行来自客户端的更新事件
         if (items [0].revents & ZMQ_POLLIN) {
             kvmsg_t *kvmsg = kvmsg_recv (collector);
@@ -988,7 +988,7 @@ int main (void)
             zframe_t *identity = zframe_recv (snapshot);
             if (!identity)
                 break;          //  中断
- 
+
             //  请求内容在消息的第二帧中
             char *request = zstr_recv (snapshot);
             if (streq (request, "ICANHAZ?"))
@@ -999,10 +999,10 @@ int main (void)
             }
             //  发送快照
             kvroute_t routing = { snapshot, identity };
- 
+
             //  逐条发送
             zhash_foreach (kvmap, s_send_single, &routing);
- 
+
             //  发送结束标识和编号
             printf ("I: 正在发送快照，版本号：%d\n", (int) sequence);
             zframe_send (&identity, snapshot, ZFRAME_MORE);
@@ -1016,10 +1016,10 @@ int main (void)
     printf (" 已中断\n已处理 %d 条消息\n", (int) sequence);
     zhash_destroy (&kvmap);
     zctx_destroy (&ctx);
- 
+
     return 0;
 }
- 
+
 //  发送一条键值对状态给套接字，使用kvmsg对象保存键值对
 static int
 s_send_single (char *key, void *data, void *args)
@@ -1042,10 +1042,10 @@ s_send_single (char *key, void *data, void *args)
 //
 //  克隆模式 - 客户端 - 模型3
 //
- 
+
 //  直接编译，不创建类库
 #include "kvsimple.c"
- 
+
 int main (void)
 {
     //  准备上下文和SUB套接字
@@ -1056,10 +1056,10 @@ int main (void)
     zsocket_connect (subscriber, "tcp://localhost:5557");
     void *publisher = zsocket_new (ctx, ZMQ_PUSH);
     zsocket_connect (publisher, "tcp://localhost:5558");
- 
+
     zhash_t *kvmap = zhash_new ();
     srandom ((unsigned) time (NULL));
- 
+
     //  获取状态快照
     int64_t sequence = 0;
     zstr_send (snapshot, "ICANHAZ?");
@@ -1084,12 +1084,12 @@ int main (void)
         int rc = zmq_poll (items, 1, tickless * ZMQ_POLL_MSEC);
         if (rc == -1)
             break;              //  上下文被关闭
- 
+
         if (items [0].revents & ZMQ_POLLIN) {
             kvmsg_t *kvmsg = kvmsg_recv (subscriber);
             if (!kvmsg)
                 break;          //  中断
- 
+
             //  丢弃过时消息，包括心跳
             if (kvmsg_sequence (kvmsg) > sequence) {
                 sequence = kvmsg_sequence (kvmsg);
@@ -1141,20 +1141,20 @@ int main (void)
 //
 //  克隆模式 服务端 模型4
 //
- 
+
 //  直接编译，不创建类库
 #include "kvsimple.c"
- 
+
 static int s_send_single (char *key, void *data, void *args);
- 
+
 //  快照请求方信息
 typedef struct {
     void *socket;           //  ROUTER套接字
     zframe_t *identity;     //  请求方标识
     char *subtree;          //  指定的子树
 } kvroute_t;
- 
- 
+
+
 int main (void)
 {
     //  准备上下文和套接字
@@ -1165,17 +1165,17 @@ int main (void)
     zsocket_bind (publisher, "tcp://*:5557");
     void *collector = zsocket_new (ctx, ZMQ_PULL);
     zsocket_bind (collector, "tcp://*:5558");
- 
+
     int64_t sequence = 0;
     zhash_t *kvmap = zhash_new ();
- 
+
     zmq_pollitem_t items [] = {
         { collector, 0, ZMQ_POLLIN, 0 },
         { snapshot, 0, ZMQ_POLLIN, 0 }
     };
     while (!zctx_interrupted) {
         int rc = zmq_poll (items, 2, 1000 * ZMQ_POLL_MSEC);
- 
+
         //  执行来自客户端的更新事件
         if (items [0].revents & ZMQ_POLLIN) {
             kvmsg_t *kvmsg = kvmsg_recv (collector);
@@ -1191,7 +1191,7 @@ int main (void)
             zframe_t *identity = zframe_recv (snapshot);
             if (!identity)
                 break;          //  Interrupted
- 
+
             //  请求内容在消息的第二帧中
             char *request = zstr_recv (snapshot);
             char *subtree = NULL;
@@ -1205,10 +1205,10 @@ int main (void)
             }
             //  发送快照
             kvroute_t routing = { snapshot, identity, subtree };
- 
+
             //  逐条发送
             zhash_foreach (kvmap, s_send_single, &routing);
- 
+
             //  发送结束标识和编号
             printf ("I: 正在发送快照，版本号：%d\n", (int) sequence);
             zframe_send (&identity, snapshot, ZFRAME_MORE);
@@ -1223,10 +1223,10 @@ int main (void)
     printf (" 已中断\n已处理 %d 条消息\n", (int) sequence);
     zhash_destroy (&kvmap);
     zctx_destroy (&ctx);
- 
+
     return 0;
 }
- 
+
 //  发送一条键值对状态给套接字，使用kvmsg对象保存键值对
 static int
 s_send_single (char *key, void *data, void *args)
@@ -1253,12 +1253,12 @@ s_send_single (char *key, void *data, void *args)
 //
 //  克隆模式 - 客户端 - 模型4
 //
- 
+
 //  直接编译，不创建类库
 #include "kvsimple.c"
- 
+
 #define SUBTREE "/client/"
- 
+
 int main (void)
 {
     //  准备上下文和SUB套接字
@@ -1270,10 +1270,10 @@ int main (void)
     zsockopt_set_subscribe (subscriber, SUBTREE);
     void *publisher = zsocket_new (ctx, ZMQ_PUSH);
     zsocket_connect (publisher, "tcp://localhost:5558");
- 
+
     zhash_t *kvmap = zhash_new ();
     srandom ((unsigned) time (NULL));
- 
+
     //  获取状态快照
     int64_t sequence = 0;
     zstr_sendm (snapshot, "ICANHAZ?");
@@ -1290,7 +1290,7 @@ int main (void)
         }
         kvmsg_store (&kvmsg, kvmap);
     }
- 
+
     int64_t alarm = zclock_time () + 1000;
     while (!zctx_interrupted) {
         zmq_pollitem_t items [] = { { subscriber, 0, ZMQ_POLLIN, 0 } };
@@ -1300,12 +1300,12 @@ int main (void)
         int rc = zmq_poll (items, 1, tickless * ZMQ_POLL_MSEC);
         if (rc == -1)
             break;              //  上下文被关闭
- 
+
         if (items [0].revents & ZMQ_POLLIN) {
             kvmsg_t *kvmsg = kvmsg_recv (subscriber);
             if (!kvmsg)
                 break;          //  中断
- 
+
             //  丢弃过时消息，包括心跳
             if (kvmsg_sequence (kvmsg) > sequence) {
                 sequence = kvmsg_sequence (kvmsg);
@@ -1353,36 +1353,36 @@ int main (void)
 ```c
 /*  =====================================================================
     kvmsg - key-value message class for example applications
- 
+
     ---------------------------------------------------------------------
     Copyright (c) 1991-2011 iMatix Corporation <www.imatix.com>
     Copyright other contributors as noted in the AUTHORS file.
- 
+
     This file is part of the ZeroMQ Guide: http://zguide.zeromq.org
- 
+
     This is free software; you can redistribute it and/or modify it under
     the terms of the GNU Lesser General Public License as published by
     the Free Software Foundation; either version 3 of the License, or (at
     your option) any later version.
- 
+
     This software is distributed in the hope that it will be useful, but
     WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
     Lesser General Public License for more details.
- 
+
     You should have received a copy of the GNU Lesser General Public
     License along with this program. If not, see
     <http://www.gnu.org/licenses/>.
     =====================================================================
 */
- 
+
 #include "kvmsg.h"
 #include <uuid/uuid.h>
 #include "zlist.h"
- 
+
 //  键是短字符串
 #define KVMSG_KEY_MAX   255
- 
+
 //  消息包含五帧
 //  frame 0: 键(ZMQ字符串)
 //  frame 1: 编号(8个字节，按顺序排列)
@@ -1395,7 +1395,7 @@ int main (void)
 #define FRAME_PROPS     3
 #define FRAME_BODY      4
 #define KVMSG_FRAMES    5
- 
+
 //  类结构
 struct _kvmsg {
     //  帧是否存在
@@ -1408,8 +1408,8 @@ struct _kvmsg {
     zlist_t *props;
     size_t props_size;
 };
- 
- 
+
+
 //  将属性列表序列化为字符串
 static void
 s_encode_props (kvmsg_t *self)
@@ -1417,7 +1417,7 @@ s_encode_props (kvmsg_t *self)
     zmq_msg_t *msg = &self->frame [FRAME_PROPS];
     if (self->present [FRAME_PROPS])
         zmq_msg_close (msg);
- 
+
     zmq_msg_init_size (msg, self->props_size);
     char *prop = zlist_first (self->props);
     char *dest = (char *) zmq_msg_data (msg);
@@ -1429,7 +1429,7 @@ s_encode_props (kvmsg_t *self)
     }
     self->present [FRAME_PROPS] = 1;
 }
- 
+
 //  从字符串中解析属性列表
 static void
 s_decode_props (kvmsg_t *self)
@@ -1438,7 +1438,7 @@ s_decode_props (kvmsg_t *self)
     self->props_size = 0;
     while (zlist_size (self->props))
         free (zlist_pop (self->props));
- 
+
     size_t remainder = zmq_msg_size (msg);
     char *prop = (char *) zmq_msg_data (msg);
     char *eoln = memchr (prop, '\n', remainder);
@@ -1451,27 +1451,27 @@ s_decode_props (kvmsg_t *self)
         eoln = memchr (prop, '\n', remainder);
     }
 }
- 
- 
+
+
 //  ---------------------------------------------------------------------
 //  构造函数，指定消息编号
- 
+
 kvmsg_t *
 kvmsg_new (int64_t sequence)
 {
     kvmsg_t
         *self;
- 
+
     self = (kvmsg_t *) zmalloc (sizeof (kvmsg_t));
     self->props = zlist_new ();
     kvmsg_set_sequence (self, sequence);
     return self;
 }
- 
- 
+
+
 //  ---------------------------------------------------------------------
 //  析构函数
- 
+
 //  释放内存函数，供zhash_free_fn()调用
 void
 kvmsg_free (void *ptr)
@@ -1483,17 +1483,17 @@ kvmsg_free (void *ptr)
         for (frame_nbr = 0; frame_nbr < KVMSG_FRAMES; frame_nbr++)
             if (self->present [frame_nbr])
                 zmq_msg_close (&self->frame [frame_nbr]);
- 
+
         //  释放属性列表
         while (zlist_size (self->props))
             free (zlist_pop (self->props));
         zlist_destroy (&self->props);
- 
+
         //  释放对象本身
         free (self);
     }
 }
- 
+
 void
 kvmsg_destroy (kvmsg_t **self_p)
 {
@@ -1503,11 +1503,11 @@ kvmsg_destroy (kvmsg_t **self_p)
         *self_p = NULL;
     }
 }
- 
- 
+
+
 //  ---------------------------------------------------------------------
 //  复制kvmsg对象
- 
+
 kvmsg_t *
 kvmsg_dup (kvmsg_t *self)
 {
@@ -1526,17 +1526,17 @@ kvmsg_dup (kvmsg_t *self)
     kvmsg->props = zlist_copy (self->props);
     return kvmsg;
 }
- 
- 
+
+
 //  ---------------------------------------------------------------------
 //  从套接字总读取键值对，返回kvmsg实例
- 
+
 kvmsg_t *
 kvmsg_recv (void *socket)
 {
     assert (socket);
     kvmsg_t *self = kvmsg_new (0);
- 
+
     //  读取所有帧，若有异常则直接返回空
     int frame_nbr;
     for (frame_nbr = 0; frame_nbr < KVMSG_FRAMES; frame_nbr++) {
@@ -1559,17 +1559,17 @@ kvmsg_recv (void *socket)
         s_decode_props (self);
     return self;
 }
- 
- 
+
+
 //  ---------------------------------------------------------------------
 //  向套接字发送键值对消息，空消息也发送
- 
+
 void
 kvmsg_send (kvmsg_t *self, void *socket)
 {
     assert (self);
     assert (socket);
- 
+
     s_encode_props (self);
     int frame_nbr;
     for (frame_nbr = 0; frame_nbr < KVMSG_FRAMES; frame_nbr++) {
@@ -1582,11 +1582,11 @@ kvmsg_send (kvmsg_t *self, void *socket)
         zmq_msg_close (&copy);
     }
 }
- 
- 
+
+
 //  ---------------------------------------------------------------------
 //  返回消息的键
- 
+
 char *
 kvmsg_key (kvmsg_t *self)
 {
@@ -1605,11 +1605,11 @@ kvmsg_key (kvmsg_t *self)
     else
         return NULL;
 }
- 
- 
+
+
 //  ---------------------------------------------------------------------
 //  返回消息的编号
- 
+
 int64_t
 kvmsg_sequence (kvmsg_t *self)
 {
@@ -1630,11 +1630,11 @@ kvmsg_sequence (kvmsg_t *self)
     else
         return 0;
 }
- 
- 
+
+
 //  ---------------------------------------------------------------------
 //  返回消息的UUID
- 
+
 byte *
 kvmsg_uuid (kvmsg_t *self)
 {
@@ -1645,11 +1645,11 @@ kvmsg_uuid (kvmsg_t *self)
     else
         return NULL;
 }
- 
- 
+
+
 //  ---------------------------------------------------------------------
 //  返回消息的内容
- 
+
 byte *
 kvmsg_body (kvmsg_t *self)
 {
@@ -1659,11 +1659,11 @@ kvmsg_body (kvmsg_t *self)
     else
         return NULL;
 }
- 
- 
+
+
 //  ---------------------------------------------------------------------
 //  返回消息内容的长度
- 
+
 size_t
 kvmsg_size (kvmsg_t *self)
 {
@@ -1673,11 +1673,11 @@ kvmsg_size (kvmsg_t *self)
     else
         return 0;
 }
- 
- 
+
+
 //  ---------------------------------------------------------------------
 //  设置消息的键
- 
+
 void
 kvmsg_set_key (kvmsg_t *self, char *key)
 {
@@ -1689,11 +1689,11 @@ kvmsg_set_key (kvmsg_t *self, char *key)
     memcpy (zmq_msg_data (msg), key, strlen (key));
     self->present [FRAME_KEY] = 1;
 }
- 
- 
+
+
 //  ---------------------------------------------------------------------
 //  设置消息的编号
- 
+
 void
 kvmsg_set_sequence (kvmsg_t *self, int64_t sequence)
 {
@@ -1702,7 +1702,7 @@ kvmsg_set_sequence (kvmsg_t *self, int64_t sequence)
     if (self->present [FRAME_SEQ])
         zmq_msg_close (msg);
     zmq_msg_init_size (msg, 8);
- 
+
     byte *source = zmq_msg_data (msg);
     source [0] = (byte) ((sequence >> 56) & 255);
     source [1] = (byte) ((sequence >> 48) & 255);
@@ -1712,14 +1712,14 @@ kvmsg_set_sequence (kvmsg_t *self, int64_t sequence)
     source [5] = (byte) ((sequence >> 16) & 255);
     source [6] = (byte) ((sequence >> 8)  & 255);
     source [7] = (byte) ((sequence)       & 255);
- 
+
     self->present [FRAME_SEQ] = 1;
 }
- 
- 
+
+
 //  ---------------------------------------------------------------------
 //  生成并设置消息的UUID
- 
+
 void
 kvmsg_set_uuid (kvmsg_t *self)
 {
@@ -1733,11 +1733,11 @@ kvmsg_set_uuid (kvmsg_t *self)
     memcpy (zmq_msg_data (msg), uuid, sizeof (uuid));
     self->present [FRAME_UUID] = 1;
 }
- 
- 
+
+
 //  ---------------------------------------------------------------------
 //  设置消息的内容
- 
+
 void
 kvmsg_set_body (kvmsg_t *self, byte *body, size_t size)
 {
@@ -1749,8 +1749,8 @@ kvmsg_set_body (kvmsg_t *self, byte *body, size_t size)
     zmq_msg_init_size (msg, size);
     memcpy (zmq_msg_data (msg), body, size);
 }
- 
- 
+
+
 //  ---------------------------------------------------------------------
 //  使用printf()格式设置消息的键
 void
@@ -1758,35 +1758,35 @@ kvmsg_fmt_key (kvmsg_t *self, char *format, ...)
 {
     char value [KVMSG_KEY_MAX + 1];
     va_list args;
- 
+
     assert (self);
     va_start (args, format);
     vsnprintf (value, KVMSG_KEY_MAX, format, args);
     va_end (args);
     kvmsg_set_key (self, value);
 }
- 
- 
+
+
 //  ---------------------------------------------------------------------
 //  使用printf()格式设置消息内容
- 
+
 void
 kvmsg_fmt_body (kvmsg_t *self, char *format, ...)
 {
     char value [255 + 1];
     va_list args;
- 
+
     assert (self);
     va_start (args, format);
     vsnprintf (value, 255, format, args);
     va_end (args);
     kvmsg_set_body (self, (byte *) value, strlen (value));
 }
- 
- 
+
+
 //  ---------------------------------------------------------------------
 //  获取消息属性，无则返回空字符串
- 
+
 char *
 kvmsg_get_prop (kvmsg_t *self, char *name)
 {
@@ -1802,27 +1802,27 @@ kvmsg_get_prop (kvmsg_t *self, char *name)
     }
     return "";
 }
- 
- 
+
+
 //  ---------------------------------------------------------------------
 //  设置消息属性
 //  属性名称不能包含=号，值的最大长度是255
- 
+
 void
 kvmsg_set_prop (kvmsg_t *self, char *name, char *format, ...)
 {
     assert (strchr (name, '=') == NULL);
- 
+
     char value [255 + 1];
     va_list args;
     assert (self);
     va_start (args, format);
     vsnprintf (value, 255, format, args);
     va_end (args);
- 
+
     //  分配空间
     char *prop = malloc (strlen (name) + strlen (value) + 2);
- 
+
     //  删除已存在的属性
     sprintf (prop, "%s=", name);
     char *existing = zlist_first (self->props);
@@ -1840,13 +1840,13 @@ kvmsg_set_prop (kvmsg_t *self, char *name, char *format, ...)
     zlist_append (self->props, prop);
     self->props_size += strlen (prop) + 1;
 }
- 
- 
+
+
 //  ---------------------------------------------------------------------
 //  在哈希表中保存kvmsg对象
 //  当kvmsg对象不再被使用时进行释放操作；
 //  若传入的值为空，则删除该对象。
- 
+
 void
 kvmsg_store (kvmsg_t **self_p, zhash_t *hash)
 {
@@ -1863,15 +1863,15 @@ kvmsg_store (kvmsg_t **self_p, zhash_t *hash)
         }
         else
             zhash_delete (hash, kvmsg_key (self));
- 
+
         *self_p = NULL;
     }
 }
- 
- 
+
+
 //  ---------------------------------------------------------------------
 //  将消息内容输出到标准错误输出
- 
+
 void
 kvmsg_dump (kvmsg_t *self)
 {
@@ -1902,19 +1902,19 @@ kvmsg_dump (kvmsg_t *self)
     else
         fprintf (stderr, "NULL message\n");
 }
- 
- 
+
+
 //  ---------------------------------------------------------------------
 //  测试用例
- 
+
 int
 kvmsg_test (int verbose)
 {
     kvmsg_t
         *kvmsg;
- 
+
     printf (" * kvmsg: ");
- 
+
     //  准备上下文和套接字
     zctx_t *ctx = zctx_new ();
     void *output = zsocket_new (ctx, ZMQ_DEALER);
@@ -1923,9 +1923,9 @@ kvmsg_test (int verbose)
     void *input = zsocket_new (ctx, ZMQ_DEALER);
     rc = zmq_connect (input, "ipc://kvmsg_selftest.ipc");
     assert (rc == 0);
- 
+
     zhash_t *kvmap = zhash_new ();
- 
+
     //  测试简单消息的收发
     kvmsg = kvmsg_new (1);
     kvmsg_set_key  (kvmsg, "key");
@@ -1935,13 +1935,13 @@ kvmsg_test (int verbose)
         kvmsg_dump (kvmsg);
     kvmsg_send (kvmsg, output);
     kvmsg_store (&kvmsg, kvmap);
- 
+
     kvmsg = kvmsg_recv (input);
     if (verbose)
         kvmsg_dump (kvmsg);
     assert (streq (kvmsg_key (kvmsg), "key"));
     kvmsg_store (&kvmsg, kvmap);
- 
+
     // 测试带有属性的消息的收发
     kvmsg = kvmsg_new (2);
     kvmsg_set_prop (kvmsg, "prop1", "value1");
@@ -1955,18 +1955,18 @@ kvmsg_test (int verbose)
         kvmsg_dump (kvmsg);
     kvmsg_send (kvmsg, output);
     kvmsg_destroy (&kvmsg);
- 
+
     kvmsg = kvmsg_recv (input);
     if (verbose)
         kvmsg_dump (kvmsg);
     assert (streq (kvmsg_key (kvmsg), "key"));
     assert (streq (kvmsg_get_prop (kvmsg, "prop2"), "value2"));
     kvmsg_destroy (&kvmsg);
- 
+
     //  关闭并销毁所有对象
     zhash_destroy (&kvmap);
     zctx_destroy (&ctx);
- 
+
     printf ("OK\n");
     return 0;
 }
@@ -1986,15 +1986,15 @@ kvmsg_set_prop (kvmsg, "ttl", "%d", randof (30));
 //
 //  克隆模式 - 服务端 - 模型5
 //
- 
+
 //  直接编译，不建类库
 #include "kvmsg.c"
- 
+
 //  反应堆处理器
 static int s_snapshots  (zloop_t *loop, void *socket, void *args);
 static int s_collector  (zloop_t *loop, void *socket, void *args);
 static int s_flush_ttl  (zloop_t *loop, void *socket, void *args);
- 
+
 //  服务器属性
 typedef struct {
     zctx_t *ctx;                //  上下文
@@ -2006,18 +2006,18 @@ typedef struct {
     void *publisher;            //  发布更新事件
     void *collector;            //  从客户端收集接收更新事件
 } clonesrv_t;
- 
- 
+
+
 int main (void)
 {
     clonesrv_t *self = (clonesrv_t *) zmalloc (sizeof (clonesrv_t));
- 
+
     self->port = 5556;
     self->ctx = zctx_new ();
     self->kvmap = zhash_new ();
     self->loop = zloop_new ();
     zloop_set_verbose (self->loop, FALSE);
- 
+
     //  打开克隆模式服务端套接字
     self->snapshot  = zsocket_new (self->ctx, ZMQ_ROUTER);
     self->publisher = zsocket_new (self->ctx, ZMQ_PUB);
@@ -2025,40 +2025,40 @@ int main (void)
     zsocket_bind (self->snapshot,  "tcp://*:%d", self->port);
     zsocket_bind (self->publisher, "tcp://*:%d", self->port + 1);
     zsocket_bind (self->collector, "tcp://*:%d", self->port + 2);
- 
+
     //  注册反应堆处理程序
     zloop_reader (self->loop, self->snapshot, s_snapshots, self);
     zloop_reader (self->loop, self->collector, s_collector, self);
     zloop_timer  (self->loop, 1000, 0, s_flush_ttl, self);
- 
+
     //  运行反应堆，直至中断
     zloop_start (self->loop);
- 
+
     zloop_destroy (&self->loop);
     zhash_destroy (&self->kvmap);
     zctx_destroy (&self->ctx);
     free (self);
     return 0;
 }
- 
- 
+
+
 //  ---------------------------------------------------------------------
 //  发送快照内容
- 
+
 static int s_send_single (char *key, void *data, void *args);
- 
+
 //  请求方信息
 typedef struct {
     void *socket;           //  ROUTER套接字
     zframe_t *identity;     //  请求方标识
     char *subtree;          //  子树信息
 } kvroute_t;
- 
+
 static int
 s_snapshots (zloop_t *loop, void *snapshot, void *args)
 {
     clonesrv_t *self = (clonesrv_t *) args;
- 
+
     zframe_t *identity = zframe_recv (snapshot);
     if (identity) {
         //  请求位于消息第二帧
@@ -2070,12 +2070,12 @@ s_snapshots (zloop_t *loop, void *snapshot, void *args)
         }
         else
             printf ("E: 错误的请求，程序中止\n");
- 
+
         if (subtree) {
             //  发送状态快照
             kvroute_t routing = { snapshot, identity, subtree };
             zhash_foreach (self->kvmap, s_send_single, &routing);
- 
+
             //  发送结束符和版本号
             zclock_log ("I: 正在发送快照，版本号：%d", (int) self->sequence);
             zframe_send (&identity, snapshot, ZFRAME_MORE);
@@ -2089,8 +2089,8 @@ s_snapshots (zloop_t *loop, void *snapshot, void *args)
     }
     return 0;
 }
- 
- 
+
+
 //  每次发送一个快照键值对
 static int
 s_send_single (char *key, void *data, void *args)
@@ -2107,16 +2107,16 @@ s_send_single (char *key, void *data, void *args)
     }
     return 0;
 }
- 
- 
+
+
 //  ---------------------------------------------------------------------
 //  收集更新事件
- 
+
 static int
 s_collector (zloop_t *loop, void *collector, void *args)
 {
     clonesrv_t *self = (clonesrv_t *) args;
- 
+
     kvmsg_t *kvmsg = kvmsg_recv (collector);
     if (kvmsg) {
         kvmsg_set_sequence (kvmsg, ++self->sequence);
@@ -2130,13 +2130,13 @@ s_collector (zloop_t *loop, void *collector, void *args)
     }
     return 0;
 }
- 
- 
+
+
 //  ---------------------------------------------------------------------
 //  删除过期的瞬间值
- 
+
 static int s_flush_single (char *key, void *data, void *args);
- 
+
 static int
 s_flush_ttl (zloop_t *loop, void *unused, void *args)
 {
@@ -2144,13 +2144,13 @@ s_flush_ttl (zloop_t *loop, void *unused, void *args)
     zhash_foreach (self->kvmap, s_flush_single, args);
     return 0;
 }
- 
+
 //  删除过期的键值对，并广播该事件
 static int
 s_flush_single (char *key, void *data, void *args)
 {
     clonesrv_t *self = (clonesrv_t *) args;
- 
+
     kvmsg_t *kvmsg = (kvmsg_t *) data;
     int64_t ttl;
     sscanf (kvmsg_get_prop (kvmsg, "ttl"), "%" PRId64, &ttl);
@@ -2196,7 +2196,7 @@ s_flush_single (char *key, void *data, void *args)
 * 我们将为所有的更新事件添加UUID属性，它由客户端生成，服务端会将其发布给所有客户端。
 
 * 备机将维护一个“待处理列表”，保存来自客户端、尚未由服务端发布的更新事件；或者反过来，来自服务端、尚未从客户端收到的更新事件。这个列表从旧到新排列，这样就能方便地从顶部删除消息。
- 
+
 我们可以为客户端设计一个有限状态机，它有三种状态：
 
 * 客户端打开并连接了套接字，然后向服务端发送快照请求。为了避免消息风暴，它只会请求两次。
@@ -2209,7 +2209,7 @@ s_flush_single (char *key, void *data, void *args)
 
 我们可以将客户端状态图绘制出来：
 
-![6](https://github.com/haozu/zguide-cn/raw/master/images/chapter5_6.png)
+![6](./images/chapter5_6.png)
 
 故障恢复的步骤如下：
   * 客户端检测到主机不再发送心跳，因此转而连接备机，并请求一份新的快照；
@@ -2226,7 +2226,7 @@ s_flush_single (char *key, void *data, void *args)
 
 下面是整体架构图：
 
-![7](https://github.com/haozu/zguide-cn/raw/master/images/chapter5_7.png)
+![7](./images/chapter5_7.png)
 
 开始编程之前，我们需要将客户端重构成一个可复用的类。在ZMQ中写异步类有时是为了练习如何写出优雅的代码，但这里我们确实是希望克隆模式可以成为一种易于使用的程序。上述架构的伸缩性来源于客户端的正确行为，因此有必要将其封装成一份API。要在客户端中进行故障恢复还是比较复杂的，试想一下自由者模式和克隆模式结合起来会是什么样的吧。
 
@@ -2282,22 +2282,22 @@ char *clone_get (clone_t *self, char *key);
 //
 //  克隆模式 - 客户端 - 模型6
 //
- 
+
 //  直接编译，不建类库
 #include "clone.c"
- 
+
 #define SUBTREE "/client/"
- 
+
 int main (void)
 {
     //  创建分布式哈希表
     clone_t *clone = clone_new ();
- 
+
     //  配置
     clone_subtree (clone, SUBTREE);
     clone_connect (clone, "tcp://localhost", "5556");
     clone_connect (clone, "tcp://localhost", "5566");
- 
+
     //  插入随机键值
     while (!zctx_interrupted) {
         //  生成随机值
@@ -2319,72 +2319,72 @@ int main (void)
 ```c
 /*  =====================================================================
     clone - client-side Clone Pattern class
- 
+
     ---------------------------------------------------------------------
     Copyright (c) 1991-2011 iMatix Corporation <www.imatix.com>
     Copyright other contributors as noted in the AUTHORS file.
- 
+
     This file is part of the ZeroMQ Guide: http://zguide.zeromq.org
- 
+
     This is free software; you can redistribute it and/or modify it under
     the terms of the GNU Lesser General Public License as published by
     the Free Software Foundation; either version 3 of the License, or (at
     your option) any later version.
- 
+
     This software is distributed in the hope that it will be useful, but
     WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
     Lesser General Public License for more details.
- 
+
     You should have received a copy of the GNU Lesser General Public
     License along with this program. If not, see
     <http://www.gnu.org/licenses/>.
     =====================================================================
 */
- 
+
 #include "clone.h"
- 
+
 //  请求超时时间
 #define GLOBAL_TIMEOUT  4000    //  msecs
 //  判定服务器死亡的时间
 #define SERVER_TTL      5000    //  msecs
 //  服务器数量
 #define SERVER_MAX      2
- 
- 
+
+
 //  =====================================================================
 //  同步部分，在应用程序线程中工作
- 
+
 //  ---------------------------------------------------------------------
 //  类结构
- 
+
 struct _clone_t {
     zctx_t *ctx;                //  上下文
     void *pipe;                 //  和后台代理间的通信套接字
 };
- 
+
 //  该线程用于处理真正的clone类
 static void clone_agent (void *args, zctx_t *ctx, void *pipe);
- 
- 
+
+
 //  ---------------------------------------------------------------------
 //  构造函数
- 
+
 clone_t *
 clone_new (void)
 {
     clone_t
         *self;
- 
+
     self = (clone_t *) zmalloc (sizeof (clone_t));
     self->ctx = zctx_new ();
     self->pipe = zthread_fork (self->ctx, clone_agent, NULL);
     return self;
 }
- 
+
 //  ---------------------------------------------------------------------
 //  析构函数
- 
+
 void
 clone_destroy (clone_t **self_p)
 {
@@ -2396,11 +2396,11 @@ clone_destroy (clone_t **self_p)
         *self_p = NULL;
     }
 }
- 
+
 //  ---------------------------------------------------------------------
 //  在链接之前指定快照和更新事件的子树
 //  发送给后台代理的消息内容为[SUBTREE][subtree]
- 
+
 void clone_subtree (clone_t *self, char *subtree)
 {
     assert (self);
@@ -2409,11 +2409,11 @@ void clone_subtree (clone_t *self, char *subtree)
     zmsg_addstr (msg, subtree);
     zmsg_send (&msg, self->pipe);
 }
- 
+
 //  ---------------------------------------------------------------------
 //  连接至新的服务器端点
 //  消息内容：[CONNECT][endpoint][service]
- 
+
 void
 clone_connect (clone_t *self, char *address, char *service)
 {
@@ -2424,17 +2424,17 @@ clone_connect (clone_t *self, char *address, char *service)
     zmsg_addstr (msg, service);
     zmsg_send (&msg, self->pipe);
 }
- 
+
 //  ---------------------------------------------------------------------
 //  设置新值
 //  消息内容：[SET][key][value][ttl]
- 
+
 void
 clone_set (clone_t *self, char *key, char *value, int ttl)
 {
     char ttlstr [10];
     sprintf (ttlstr, "%d", ttl);
- 
+
     assert (self);
     zmsg_t *msg = zmsg_new ();
     zmsg_addstr (msg, "SET");
@@ -2443,12 +2443,12 @@ clone_set (clone_t *self, char *key, char *value, int ttl)
     zmsg_addstr (msg, ttlstr);
     zmsg_send (&msg, self->pipe);
 }
- 
+
 //  ---------------------------------------------------------------------
 //  取值
 //  消息内容：[GET][key]
 //  如果没有clone可用，会返回NULL
- 
+
 char *
 clone_get (clone_t *self, char *key)
 {
@@ -2458,7 +2458,7 @@ clone_get (clone_t *self, char *key)
     zmsg_addstr (msg, "GET");
     zmsg_addstr (msg, key);
     zmsg_send (&msg, self->pipe);
- 
+
     zmsg_t *reply = zmsg_recv (self->pipe);
     if (reply) {
         char *value = zmsg_popstr (reply);
@@ -2467,14 +2467,14 @@ clone_get (clone_t *self, char *key)
     }
     return NULL;
 }
- 
- 
+
+
 //  =====================================================================
 //  异步部分，在后台运行
- 
+
 //  ---------------------------------------------------------------------
 //  单个服务端信息
- 
+
 typedef struct {
     char *address;              //  服务端地址
     int port;                   //  端口
@@ -2483,16 +2483,16 @@ typedef struct {
     uint64_t expiry;            //  服务器过期时间
     uint requests;              //  收到的快照请求数
 } server_t;
- 
+
 static server_t *
 server_new (zctx_t *ctx, char *address, int port, char *subtree)
 {
     server_t *self = (server_t *) zmalloc (sizeof (server_t));
- 
+
     zclock_log ("I: adding server %s:%d...", address, port);
     self->address = strdup (address);
     self->port = port;
- 
+
     self->snapshot = zsocket_new (ctx, ZMQ_DEALER);
     zsocket_connect (self->snapshot, "%s:%d", address, port);
     self->subscriber = zsocket_new (ctx, ZMQ_SUB);
@@ -2500,7 +2500,7 @@ server_new (zctx_t *ctx, char *address, int port, char *subtree)
     zsockopt_set_subscribe (self->subscriber, subtree);
     return self;
 }
- 
+
 static void
 server_destroy (server_t **self_p)
 {
@@ -2512,15 +2512,15 @@ server_destroy (server_t **self_p)
         *self_p = NULL;
     }
 }
- 
+
 //  ---------------------------------------------------------------------
 //  后台代理类
- 
+
 //  状态
 #define STATE_INITIAL       0   //  连接之前
 #define STATE_SYNCING       1   //  正在同步
 #define STATE_ACTIVE        2   //  正在更新
- 
+
 typedef struct {
     zctx_t *ctx;                //  上下文
     void *pipe;                 //  与主线程通信的套接字
@@ -2533,7 +2533,7 @@ typedef struct {
     int64_t sequence;           //  键值对编号
     void *publisher;            //  发布更新事件的套接字
 } agent_t;
- 
+
 static agent_t *
 agent_new (zctx_t *ctx, void *pipe)
 {
@@ -2546,7 +2546,7 @@ agent_new (zctx_t *ctx, void *pipe)
     self->publisher = zsocket_new (self->ctx, ZMQ_PUB);
     return self;
 }
- 
+
 static void
 agent_destroy (agent_t **self_p)
 {
@@ -2562,7 +2562,7 @@ agent_destroy (agent_t **self_p)
         *self_p = NULL;
     }
 }
- 
+
 //  若线程被中断则返回-1
 static int
 agent_control_message (agent_t *self)
@@ -2571,7 +2571,7 @@ agent_control_message (agent_t *self)
     char *command = zmsg_popstr (msg);
     if (command == NULL)
         return -1;
- 
+
     if (streq (command, "SUBTREE")) {
         free (self->subtree);
         self->subtree = zmsg_popstr (msg);
@@ -2599,7 +2599,7 @@ agent_control_message (agent_t *self)
         char *ttl = zmsg_popstr (msg);
         zhash_update (self->kvmap, key, (byte *) value);
         zhash_freefn (self->kvmap, key, free);
- 
+
         //  向服务端发送键值对
         kvmsg_t *kvmsg = kvmsg_new (0);
         kvmsg_set_key  (kvmsg, key);
@@ -2627,16 +2627,16 @@ puts (key);
     zmsg_destroy (&msg);
     return 0;
 }
- 
- 
+
+
 //  ---------------------------------------------------------------------
 //  异步的后台代理会维护一个服务端池，并处理来自应用程序的请求或应答。
- 
+
 static void
 clone_agent (void *args, zctx_t *ctx, void *pipe)
 {
     agent_t *self = agent_new (ctx, pipe);
- 
+
     while (TRUE) {
         zmq_pollitem_t poll_set [] = {
             { pipe, 0, ZMQ_POLLIN, 0 },
@@ -2683,7 +2683,7 @@ clone_agent (void *args, zctx_t *ctx, void *pipe)
         int rc = zmq_poll (poll_set, poll_size, poll_timer);
         if (rc == -1)
             break;              //  上下文已被关闭
- 
+
         if (poll_set [0].revents & ZMQ_POLLIN) {
             if (agent_control_message (self))
                 break;          //  中断
@@ -2693,7 +2693,7 @@ clone_agent (void *args, zctx_t *ctx, void *pipe)
             kvmsg_t *kvmsg = kvmsg_recv (poll_set [1].socket);
             if (!kvmsg)
                 break;          //  中断
- 
+
             //  任何服务端的消息将重置它的过期时间
             server->expiry = zclock_time () + SERVER_TTL;
             if (self->state == STATE_SYNCING) {
@@ -2744,11 +2744,11 @@ clone_agent (void *args, zctx_t *ctx, void *pipe)
 //
 // 克隆模式 - 服务端 - 模型6
 //
- 
+
 //  直接编译，不建类库
 #include "bstar.c"
 #include "kvmsg.c"
- 
+
 //  bstar反应堆API
 static int s_snapshots  (zloop_t *loop, void *socket, void *args);
 static int s_collector  (zloop_t *loop, void *socket, void *args);
@@ -2757,7 +2757,7 @@ static int s_send_hugz  (zloop_t *loop, void *socket, void *args);
 static int s_new_master (zloop_t *loop, void *unused, void *args);
 static int s_new_slave  (zloop_t *loop, void *unused, void *args);
 static int s_subscriber (zloop_t *loop, void *socket, void *args);
- 
+
 //  服务端属性
 typedef struct {
     zctx_t *ctx;                //  上下文
@@ -2774,8 +2774,8 @@ typedef struct {
     Bool master;                //  是否为master
     Bool slave;                 //  是否为slave
 } clonesrv_t;
- 
- 
+
+
 int main (int argc, char *argv [])
 {
     clonesrv_t *self = (clonesrv_t *) zmalloc (sizeof (clonesrv_t));
@@ -2808,33 +2808,33 @@ int main (int argc, char *argv [])
     //  主机将成为master
     if (self->primary)
         self->kvmap = zhash_new ();
- 
+
     self->ctx = zctx_new ();
     self->pending = zlist_new ();
     bstar_set_verbose (self->bstar, TRUE);
- 
+
     //  设置克隆服务端套接字
     self->publisher = zsocket_new (self->ctx, ZMQ_PUB);
     self->collector = zsocket_new (self->ctx, ZMQ_SUB);
     zsocket_bind (self->publisher, "tcp://*:%d", self->port + 1);
     zsocket_bind (self->collector, "tcp://*:%d", self->port + 2);
- 
+
     //  作为克隆客户端连接同伴
     self->subscriber = zsocket_new (self->ctx, ZMQ_SUB);
     zsocket_connect (self->subscriber, "tcp://localhost:%d", self->peer + 1);
- 
+
     //  注册状态事件处理器
     bstar_new_master (self->bstar, s_new_master, self);
     bstar_new_slave (self->bstar, s_new_slave, self);
- 
+
     //  注册bstar反应堆其他事件处理器
     zloop_reader (bstar_zloop (self->bstar), self->collector, s_collector, self);
     zloop_timer  (bstar_zloop (self->bstar), 1000, 0, s_flush_ttl, self);
     zloop_timer  (bstar_zloop (self->bstar), 1000, 0, s_send_hugz, self);
- 
+
     //  开启bstar反应堆
     bstar_start (self->bstar);
- 
+
     //  中断，终止。
     while (zlist_size (self->pending)) {
         kvmsg_t *kvmsg = (kvmsg_t *) zlist_pop (self->pending);
@@ -2845,28 +2845,28 @@ int main (int argc, char *argv [])
     zhash_destroy (&self->kvmap);
     zctx_destroy (&self->ctx);
     free (self);
- 
+
     return 0;
 }
- 
- 
+
+
 //  ---------------------------------------------------------------------
 //  发送快照内容
- 
+
 static int s_send_single (char *key, void *data, void *args);
- 
+
 //  请求方信息
 typedef struct {
     void *socket;           //  ROUTER套接字
     zframe_t *identity;     //  请求放标识
     char *subtree;          //  子树
 } kvroute_t;
- 
+
 static int
 s_snapshots (zloop_t *loop, void *snapshot, void *args)
 {
     clonesrv_t *self = (clonesrv_t *) args;
- 
+
     zframe_t *identity = zframe_recv (snapshot);
     if (identity) {
         //  请求在消息的第二帧中
@@ -2878,12 +2878,12 @@ s_snapshots (zloop_t *loop, void *snapshot, void *args)
         }
         else
             printf ("E: 错误的请求，正在退出……\n");
- 
+
         if (subtree) {
             //  发送状态快照
             kvroute_t routing = { snapshot, identity, subtree };
             zhash_foreach (self->kvmap, s_send_single, &routing);
- 
+
             //  发送终止消息，以及消息编号
             zclock_log ("I: 正在发送快照，版本号：%d", (int) self->sequence);
             zframe_send (&identity, snapshot, ZFRAME_MORE);
@@ -2897,8 +2897,8 @@ s_snapshots (zloop_t *loop, void *snapshot, void *args)
     }
     return 0;
 }
- 
- 
+
+
 //  每次发送一个快照键值对
 static int
 s_send_single (char *key, void *data, void *args)
@@ -2915,20 +2915,20 @@ s_send_single (char *key, void *data, void *args)
     }
     return 0;
 }
- 
- 
+
+
 //  ---------------------------------------------------------------------
 //  从客户端收集更新事件
 //  如果我们是master，则将该事件写入kvmap对象；
 //  如果我们是slave，则将其写入延迟队列
- 
+
 static int s_was_pending (clonesrv_t *self, kvmsg_t *kvmsg);
- 
+
 static int
 s_collector (zloop_t *loop, void *collector, void *args)
 {
     clonesrv_t *self = (clonesrv_t *) args;
- 
+
     kvmsg_t *kvmsg = kvmsg_recv (collector);
     kvmsg_dump (kvmsg);
     if (kvmsg) {
@@ -2952,9 +2952,9 @@ s_collector (zloop_t *loop, void *collector, void *args)
     }
     return 0;
 }
- 
+
 //  如果消息已在延迟队列中，则删除它并返回TRUE
- 
+
 static int
 s_was_pending (clonesrv_t *self, kvmsg_t *kvmsg)
 {
@@ -2969,13 +2969,13 @@ s_was_pending (clonesrv_t *self, kvmsg_t *kvmsg)
     }
     return FALSE;
 }
- 
- 
+
+
 //  ---------------------------------------------------------------------
 //  删除带有过期时间的瞬间值
- 
+
 static int s_flush_single (char *key, void *data, void *args);
- 
+
 static int
 s_flush_ttl (zloop_t *loop, void *unused, void *args)
 {
@@ -2983,13 +2983,13 @@ s_flush_ttl (zloop_t *loop, void *unused, void *args)
     zhash_foreach (self->kvmap, s_flush_single, args);
     return 0;
 }
- 
+
 //  如果键值对过期，则进行删除操作，并广播该事件
 static int
 s_flush_single (char *key, void *data, void *args)
 {
     clonesrv_t *self = (clonesrv_t *) args;
- 
+
     kvmsg_t *kvmsg = (kvmsg_t *) data;
     int64_t ttl;
     sscanf (kvmsg_get_prop (kvmsg, "ttl"), "%" PRId64, &ttl);
@@ -3002,42 +3002,42 @@ s_flush_single (char *key, void *data, void *args)
     }
     return 0;
 }
- 
- 
+
+
 //  ---------------------------------------------------------------------
 //  发送心跳
- 
+
 static int
 s_send_hugz (zloop_t *loop, void *unused, void *args)
 {
     clonesrv_t *self = (clonesrv_t *) args;
- 
+
     kvmsg_t *kvmsg = kvmsg_new (self->sequence);
     kvmsg_set_key  (kvmsg, "HUGZ");
     kvmsg_set_body (kvmsg, (byte *) "", 0);
     kvmsg_send     (kvmsg, self->publisher);
     kvmsg_destroy (&kvmsg);
- 
+
     return 0;
 }
- 
- 
+
+
 //  ---------------------------------------------------------------------
 //  状态改变事件处理函数
 //  我们将转变为master
 //
 //  备机先将延迟列表中的事件更新到自己的快照中，
 //  并开始接收客户端发来的快照请求。
- 
+
 static int
 s_new_master (zloop_t *loop, void *unused, void *args)
 {
     clonesrv_t *self = (clonesrv_t *) args;
- 
+
     self->master = TRUE;
     self->slave = FALSE;
     zloop_cancel (bstar_zloop (self->bstar), self->subscriber);
- 
+
     //  应用延迟列表中的事件
     while (zlist_size (self->pending)) {
         kvmsg_t *kvmsg = (kvmsg_t *) zlist_pop (self->pending);
@@ -3048,28 +3048,28 @@ s_new_master (zloop_t *loop, void *unused, void *args)
     }
     return 0;
 }
- 
+
 //  ---------------------------------------------------------------------
 //  正在切换为slave
- 
+
 static int
 s_new_slave (zloop_t *loop, void *unused, void *args)
 {
     clonesrv_t *self = (clonesrv_t *) args;
- 
+
     zhash_destroy (&self->kvmap);
     self->master = FALSE;
     self->slave = TRUE;
     zloop_reader (bstar_zloop (self->bstar), self->subscriber,
                   s_subscriber, self);
- 
+
     return 0;
 }
- 
+
 //  ---------------------------------------------------------------------
 //  从同伴主机（master）接收更新事件；
 //  接收该类更新事件时，我们一定是slave。
- 
+
 static int
 s_subscriber (zloop_t *loop, void *subscriber, void *args)
 {
@@ -3100,7 +3100,7 @@ s_subscriber (zloop_t *loop, void *subscriber, void *args)
     kvmsg_t *kvmsg = kvmsg_recv (subscriber);
     if (!kvmsg)
         return 0;
- 
+
     if (strneq (kvmsg_key (kvmsg), "HUGZ")) {
         if (!s_was_pending (self, kvmsg)) {
             //  如果master的更新事件比客户端的事件早到，则将master的事件存入延迟列表，
@@ -3118,7 +3118,7 @@ s_subscriber (zloop_t *loop, void *subscriber, void *args)
     }
     else
         kvmsg_destroy (&kvmsg);
- 
+
     return 0;
 }
 ```
@@ -3142,4 +3142,3 @@ s_subscriber (zloop_t *loop, void *subscriber, void *args)
 我们将其称为“集群化哈希表协议”，这是一个能够跨集群地进行键值哈希表管理，提供了多客户端的通信机制；客户端可以只操作一个子树的数据，包括更新和定义瞬间值。
 
 * http://rfc.zeromq.org/spec:12
-

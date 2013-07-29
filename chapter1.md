@@ -1,7 +1,7 @@
 
 # ZMQ 指南
 
-**作者: Pieter Hintjens <ph@imatix.com>, CEO iMatix Corporation.**  
+**作者: Pieter Hintjens <ph@imatix.com>, CEO iMatix Corporation.**
 **翻译: 张吉 <jizhang@anjuke.com>, 安居客集团 好租网工程师**
 
 With thanks to Bill Desmarais, Brian Dorsey, CAF, Daniel Lin, Eric Desgranges, Gonzalo Diethelm, Guido Goldstein, Hunter Ford, Kamil Shakirov, Martin Sustrik, Mike Castleman, Naveen Chawla, Nicola Peduzzi, Oliver Smith, Olivier Chamoux, Peter Alexander, Pierre Rouleau, Randy Dryburgh, John Unwin, Alex Thomas, Mihail Minkov, Jeremy Avnet, Michael Compton, Kamil Kisiel, Mark Kharitonov, Guillaume Aubert, Ian Barber, Mike Sheridan, Faruk Akgul, Oleg Sidorov, Lev Givon, Allister MacLeod, Alexander D'Archangel, Andreas Hoelzlwimmer, Han Holl, Robert G. Jakabosky, Felipe Cruz, Marcus McCurdy, Mikhail Kulemin, Dr. Gergő Érdi, Pavel Zhukov, Alexander Else, Giovanni Ruggiero, Rick "Technoweenie", Daniel Lundin, Dave Hoover, Simon Jefford, Benjamin Peterson, Justin Case, Devon Weller, Richard Smith, Alexander Morland, Wadim Grasza, Michael Jakl, and Zed Shaw for their contributions, and to Stathis Sideris for [Ditaa](http://www.ditaa.org).
@@ -80,15 +80,15 @@ git clone git://github.com/imatix/zguide.git
 #include <stdio.h>
 #include <unistd.h>
 #include <string.h>
- 
+
 int main (void)
 {
     void *context = zmq_init (1);
- 
+
     //  与客户端通信的套接字
     void *responder = zmq_socket (context, ZMQ_REP);
     zmq_bind (responder, "tcp://*:5555");
- 
+
     while (1) {
         //  等待客户端请求
         zmq_msg_t request;
@@ -96,10 +96,10 @@ int main (void)
         zmq_recv (responder, &request, 0);
         printf ("收到 Hello\n");
         zmq_msg_close (&request);
- 
+
         //  做些“处理”
         sleep (1);
- 
+
         //  返回应答
         zmq_msg_t reply;
         zmq_msg_init_size (&reply, 5);
@@ -114,7 +114,7 @@ int main (void)
 }
 ```
 
-![1](https://github.com/haozu/zguide-cn/raw/master/images/chapter1_1.png)
+![1](./images/chapter1_1.png)
 
 使用REQ-REP套接字发送和接受消息是需要遵循一定规律的。客户端首先使用zmq_send()发送消息，再用zmq_recv()接收，如此循环。如果打乱了这个顺序（如连续发送两次）则会报错。类似地，服务端必须先进行接收，后进行发送。
 
@@ -132,23 +132,23 @@ ZMQ使用C语言作为它参考手册的语言，本指南也以它作为示例�
 #include <string>
 #include <iostream>
 #include <unistd.h>
- 
+
 int main () {
     // 准备上下文和套接字
     zmq::context_t context (1);
     zmq::socket_t socket (context, ZMQ_REP);
     socket.bind ("tcp://*:5555");
- 
+
     while (true) {
         zmq::message_t request;
- 
+
         // 等待客户端请求
         socket.recv (&request);
         std::cout << "收到 Hello" << std::endl;
- 
+
         // 做一些“处理”
         sleep (1);
- 
+
         // 应答World
         zmq::message_t reply (5);
         memcpy ((void *) reply.data (), "World", 5);
@@ -170,21 +170,21 @@ int main () {
  * 从客户端接收Hello，并应答World
  * @author Ian Barber <ian(dot)barber(at)gmail(dot)com>
  */
- 
+
 $context = new ZMQContext(1);
- 
+
 // 与客户端通信的套接字
 $responder = new ZMQSocket($context, ZMQ::SOCKET_REP);
 $responder->bind("tcp://*:5555");
- 
+
 while(true) {
     // 等待客户端请求
     $request = $responder->recv();
     printf ("Received request: [%s]\n", $request);
- 
+
     // 做一些“处理”
     sleep (1);
- 
+
     // 应答World
     $responder->send("World");
 }
@@ -204,16 +204,16 @@ while(true) {
 #include <string.h>
 #include <stdio.h>
 #include <unistd.h>
- 
+
 int main (void)
 {
     void *context = zmq_init (1);
- 
+
     //  连接至服务端的套接字
     printf ("正在连接至hello world服务端...\n");
     void *requester = zmq_socket (context, ZMQ_REQ);
     zmq_connect (requester, "tcp://localhost:5555");
- 
+
     int request_nbr;
     for (request_nbr = 0; request_nbr != 10; request_nbr++) {
         zmq_msg_t request;
@@ -222,7 +222,7 @@ int main (void)
         printf ("正在发送 Hello %d...\n", request_nbr);
         zmq_send (requester, &request, 0);
         zmq_msg_close (&request);
- 
+
         zmq_msg_t reply;
         zmq_msg_init (&reply);
         zmq_recv (requester, &reply, 0);
@@ -237,7 +237,7 @@ int main (void)
 
 这看起来是否太简单了？ZMQ就是这样一个东西，你往里加点儿料就能制作出一枚无穷能量的原子弹，用它来拯救世界吧！
 
-![2](https://github.com/haozu/zguide-cn/raw/master/images/chapter1_2.png)
+![2](./images/chapter1_2.png)
 
 理论上你可以连接千万个客户端到这个服务端上，同时连接都没问题，程序仍会运作得很好。你可以尝试一下先打开客户端，再打开服务端，可以看到程序仍然会正常工作，想想这意味着什么。
 
@@ -263,7 +263,7 @@ socket.send ("Hello")
 
 实际发送的消息是：
 
-![3](https://github.com/haozu/zguide-cn/raw/master/images/chapter1_3.png)
+![3](./images/chapter1_3.png)
 
 如果你从C语言中读取该消息，你会读到一个类似于字符串的内容，甚至它可能就是一个字符串（第六位在内存中正好是一个空字符），但是这并不合适。这样一来，客户端和服务端对字符串的定义就不统一了，你会得到一些奇怪的结果。
 
@@ -304,13 +304,13 @@ ZMQ目前有多个版本，而且仍在持续更新。如果你遇到了问题�
 // 返回当前ZMQ的版本号
 //
 #include "zhelpers.h"
- 
+
 int main (void)
 {
     int major, minor, patch;
     zmq_version (&major, &minor, &patch);
     printf ("当前ZMQ版本号为 %d.%d.%d\n", major, minor, patch);
- 
+
     return EXIT_SUCCESS;
 }
 ```
@@ -330,7 +330,7 @@ int main (void)
 //  发布随机气象信息
 //
 #include "zhelpers.h"
- 
+
 int main (void)
 {
     //  准备上下文和PUB套接字
@@ -338,7 +338,7 @@ int main (void)
     void *publisher = zmq_socket (context, ZMQ_PUB);
     zmq_bind (publisher, "tcp://*:5556");
     zmq_bind (publisher, "ipc://weather.ipc");
- 
+
     //  初始化随机数生成器
     srandom ((unsigned) time (NULL));
     while (1) {
@@ -347,7 +347,7 @@ int main (void)
         zipcode     = randof (100000);
         temperature = randof (215) - 80;
         relhumidity = randof (50) + 10;
- 
+
         //  向所有订阅者发送消息
         char update [20];
         sprintf (update, "%05d %d %d", zipcode, temperature, relhumidity);
@@ -361,7 +361,7 @@ int main (void)
 
 这项更新服务没有开始、没有结束，就像永不消失的电波一样。
 
-![4](https://github.com/haozu/zguide-cn/raw/master/images/chapter1_4.png)
+![4](./images/chapter1_4.png)
 
 下面是客户端程序，它会接受发布者的消息，只处理特定邮编标注的信息，如纽约的邮编是10001:
 
@@ -374,20 +374,20 @@ int main (void)
 //  收集指定邮编的气象信息，并计算平均温度
 //
 #include "zhelpers.h"
- 
+
 int main (int argc, char *argv [])
 {
     void *context = zmq_init (1);
- 
+
     //  创建连接至服务端的套接字
     printf ("正在收集气象信息...\n");
     void *subscriber = zmq_socket (context, ZMQ_SUB);
     zmq_connect (subscriber, "tcp://localhost:5556");
- 
+
     //  设置订阅信息，默认为纽约，邮编10001
     char *filter = (argc > 1)? argv [1]: "10001 ";
     zmq_setsockopt (subscriber, ZMQ_SUBSCRIBE, filter, strlen (filter));
- 
+
     //  处理100条更新信息
     int update_nbr;
     long total_temp = 0;
@@ -401,7 +401,7 @@ int main (int argc, char *argv [])
     }
     printf ("地区邮编 '%s' 的平均温度为 %dF\n",
         filter, (int) (total_temp / update_nbr));
- 
+
     zmq_close (subscriber);
     zmq_term (context);
     return 0;
@@ -467,29 +467,29 @@ sys     0m2.290s
 //  发送一组任务给已建立连接的worker
 //
 #include "zhelpers.h"
- 
-int main (void) 
+
+int main (void)
 {
     void *context = zmq_init (1);
- 
+
     //  用于发送消息的套接字
     void *sender = zmq_socket (context, ZMQ_PUSH);
     zmq_bind (sender, "tcp://*:5557");
- 
+
     //  用于发送开始信号的套接字
     void *sink = zmq_socket (context, ZMQ_PUSH);
     zmq_connect (sink, "tcp://localhost:5558");
- 
+
     printf ("准备好worker后按任意键开始: ");
     getchar ();
     printf ("正在向worker分配任务...\n");
- 
+
     //  发送开始信号
     s_send (sink, "0");
- 
+
     //  初始化随机数生成器
     srandom ((unsigned) time (NULL));
- 
+
     //  发送100个任务
     int task_nbr;
     int total_msec = 0;     //  预计执行时间（毫秒）
@@ -504,7 +504,7 @@ int main (void)
     }
     printf ("预计执行时间: %d 毫秒\n", total_msec);
     sleep (1);              //  延迟一段时间，让任务分发完成
- 
+
     zmq_close (sink);
     zmq_close (sender);
     zmq_term (context);
@@ -512,7 +512,7 @@ int main (void)
 }
 ```
 
-![5](https://github.com/haozu/zguide-cn/raw/master/images/chapter1_5.png)
+![5](./images/chapter1_5.png)
 
 下面是worker的代码，它接受信息并延迟指定的毫秒数，并发送执行完毕的信号：
 
@@ -527,30 +527,30 @@ int main (void)
 //  向结果采集器发送结果
 //
 #include "zhelpers.h"
- 
-int main (void) 
+
+int main (void)
 {
     void *context = zmq_init (1);
- 
+
     //  获取任务的套接字
     void *receiver = zmq_socket (context, ZMQ_PULL);
     zmq_connect (receiver, "tcp://localhost:5557");
- 
+
     //  发送结果的套接字
     void *sender = zmq_socket (context, ZMQ_PUSH);
     zmq_connect (sender, "tcp://localhost:5558");
- 
+
     //  循环处理任务
     while (1) {
         char *string = s_recv (receiver);
         //  输出处理进度
         fflush (stdout);
         printf ("%s.", string);
- 
+
         //  开始处理
         s_sleep (atoi (string));
         free (string);
- 
+
         //  发送结果
         s_send (sender, "");
     }
@@ -572,18 +572,18 @@ int main (void)
 //  从worker处收集处理结果
 //
 #include "zhelpers.h"
- 
-int main (void) 
+
+int main (void)
 {
     //  准备上下文和套接字
     void *context = zmq_init (1);
     void *receiver = zmq_socket (context, ZMQ_PULL);
     zmq_bind (receiver, "tcp://*:5558");
- 
+
     //  等待开始信号
     char *string = s_recv (receiver);
     free (string);
- 
+
     //  开始计时
     int64_t start_time = s_clock ();
  <D-c>
@@ -599,9 +599,9 @@ int main (void)
         fflush (stdout);
     }
     //  计算并输出总执行时间
-    printf ("执行时间: %d 毫秒\n", 
+    printf ("执行时间: %d 毫秒\n",
         (int) (s_clock () - start_time));
- 
+
     zmq_close (receiver);
     zmq_term (context);
     return 0;
@@ -629,7 +629,7 @@ Total elapsed time: 1018 msec
 
 * 结果收集器的PULL套接字会均匀地从worker处收集消息，这种机制称为_公平队列_：
 
-![6](https://github.com/haozu/zguide-cn/raw/master/images/chapter1_6.png)
+![6](./images/chapter1_6.png)
 
 管道模式也会出现慢连接的情况，让人误以为PUSH套接字没有进行负载均衡。如果你的程序中某个worker接收到了更多的请求，那是因为它的PULL套接字连接得比较快，从而在别的worker连接之前获取了额外的消息。
 
@@ -652,56 +652,56 @@ Total elapsed time: 1018 msec
 ```c
 //  注意：不要使用这段代码！
 static char *topic_str = "msg.x|";
- 
+
 void* pub_worker(void* arg){
     void *ctx = arg;
     assert(ctx);
- 
+
     void *qskt = zmq_socket(ctx, ZMQ_REP);
     assert(qskt);
- 
+
     int rc = zmq_connect(qskt, "inproc://querys");
     assert(rc == 0);
- 
+
     void *pubskt = zmq_socket(ctx, ZMQ_PUB);
     assert(pubskt);
- 
+
     rc = zmq_bind(pubskt, "inproc://publish");
     assert(rc == 0);
- 
+
     uint8_t cmd;
     uint32_t nb;
     zmq_msg_t topic_msg, cmd_msg, nb_msg, resp_msg;
- 
+
     zmq_msg_init_data(&topic_msg, topic_str, strlen(topic_str) , NULL, NULL);
- 
+
     fprintf(stdout,"WORKER: ready to recieve messages\n");
     //  注意：不要使用这段代码，它不能工作！
     //  e.g. topic_msg will be invalid the second time through
     while (1){
     zmq_send(pubskt, &topic_msg, ZMQ_SNDMORE);
- 
+
     zmq_msg_init(&cmd_msg);
     zmq_recv(qskt, &cmd_msg, 0);
     memcpy(&cmd, zmq_msg_data(&cmd_msg), sizeof(uint8_t));
     zmq_send(pubskt, &cmd_msg, ZMQ_SNDMORE);
     zmq_msg_close(&cmd_msg);
- 
+
     fprintf(stdout, "recieved cmd %u\n", cmd);
- 
+
     zmq_msg_init(&nb_msg);
     zmq_recv(qskt, &nb_msg, 0);
     memcpy(&nb, zmq_msg_data(&nb_msg), sizeof(uint32_t));
     zmq_send(pubskt, &nb_msg, 0);
     zmq_msg_close(&nb_msg);
- 
+
     fprintf(stdout, "recieved nb %u\n", nb);
- 
+
     zmq_msg_init_size(&resp_msg, sizeof(uint8_t));
     memset(zmq_msg_data(&resp_msg), 0, sizeof(uint8_t));
     zmq_send(qskt, &resp_msg, 0);
     zmq_msg_close(&resp_msg);
- 
+
     }
     return NULL;
 }
@@ -718,12 +718,12 @@ worker_thread (void *arg) {
     int rc;
     rc = zmq_connect (worker, "ipc://worker");
     assert (rc == 0);
- 
+
     void *broadcast = zmq_socket (context, ZMQ_PUB);
     assert (broadcast);
     rc = zmq_bind (broadcast, "ipc://publish");
     assert (rc == 0);
- 
+
     while (1) {
         char *part1 = s_recv (worker);
         char *part2 = s_recv (worker);
@@ -733,7 +733,7 @@ worker_thread (void *arg) {
         s_send (broadcast, part2);
         free (part1);
         free (part2);
- 
+
         s_send (worker, "OK");
     }
     return NULL;
@@ -823,7 +823,7 @@ ZMQ应用程序的一开始总是会先创建一个上下文，并用它来创�
 
 我们可以找一个开源软件来做例子，如[Hadoop Zookeeper](http://hadoop.apache.org/zookeeper/)，看一下它的C语言API源码，[src/c/src/zookeeper.c]([http://github.com/apache/zookeeper/blob/trunk/src/c/src/zookeeper.c src/c/src/zookeeper.c)。这段代码大约有3200行，没有注释，实现了一个C/S网络通信协议。它工作起来很高效，因为使用了poll()来代替select()。但是，Zookeeper应该被抽象出来，作为一种通用的消息通信层，并加以详细的注释。像这样的模块应该得到最大程度上的复用，而不是重复地制造轮子。
 
-![7](https://github.com/haozu/zguide-cn/raw/master/images/chapter1_7.png)
+![7](./images/chapter1_7.png)
 
 但是，如何编写这样一个可复用的消息层呢？为什么长久以来人们宁愿在自己的代码中重复书写控制原始TCP套接字的代码，而不愿编写这样一个公共库呢？
 
@@ -835,7 +835,7 @@ ZMQ应用程序的一开始总是会先创建一个上下文，并用它来创�
 
 这样一来，中小应用程序的开发者们就无计可施了。他们只能设法避免编写网络应用程序，转而编写那些不需要扩展的程序；或者可以使用原始的方式进行网络编程，但编写的软件会非常脆弱和复杂，难以维护；亦或者他们选择一种消息通信产品，虽然能够开发出扩展性强的应用程序，但需要支付高昂的代价。似乎没有一种选择是合理的，这也是为什么在上个世纪消息系统会成为一个广泛的问题。
 
-![8](https://github.com/haozu/zguide-cn/raw/master/images/chapter1_8.png)
+![8](./images/chapter1_8.png)
 
 我们真正需要的是这样一种消息软件，它能够做大型消息软件所能做的一切，但使用起来又非常简单，成本很低，可以用到所有的应用程序中，没有任何依赖条件。因为没有了额外的模块，就降低了出错的概率。这种软件需要能够在所有的操作系统上运行，并能支持所有的编程语言。
 
@@ -889,7 +889,7 @@ wuclient 56789 &
 
 在编写ZMQ应用程序时，你遇到最多的问题可能是无法获得消息。下面有一个问题解决路线图，列举了最基本的出错原因。不用担心其中的某些术语你没有见过，在后面的几章里都会讲到。
 
-![9](https://github.com/haozu/zguide-cn/raw/master/images/chapter1_9.png)
+![9](./images/chapter1_9.png)
 
 如果ZMQ在你的应用程序中扮演非常重要的角色，那你可能就需要好好计划一下了。首先，创建一个原型，用以测试设计方案的可行性。采取一些压力测试的手段，确保它足够的健壮。其次，主攻测试代码，也就是编写测试框架，保证有足够的电力供应和时间，来进行高强度的测试。理想状态下，应该由一个团队编写程序，另一个团队负责击垮它。最后，让你的公司及时[联系iMatix](http://www.imatix.com/contact)，获得技术上的支持。
 
@@ -909,4 +909,3 @@ wuclient 56789 &
 
   [iMatix]: http://www.imatix.com/
   [AMQP]: http://www.amqp.org/
-

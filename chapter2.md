@@ -113,7 +113,7 @@ zmq_bind (socket, "ipc://myserver.ipc");
 
 发送和接收消息使用的是zmq_send()和zmq_recv()这两个函数。虽然函数名称看起来很直白，但由于ZMQ的I/O模式和传统的TCP协议有很大不同，因此还是需要花点时间去理解的。
 
-![1](https://github.com/haozu/zguide-cn/raw/master/images/chapter2_1.png)
+![1](./images/chapter2_1.png)
 
 让我们看一看TCP套接字和ZMQ套接字之间在传输数据方面的区别：
 
@@ -122,7 +122,7 @@ zmq_bind (socket, "ipc://myserver.ipc");
 * ZMQ套接字可以和多个套接字进行连接（如果套接字类型允许的话）。TCP协议只能进行点对点的连接，而ZMQ则可以进行一对多（类似于无线广播）、多对多（类似于邮局）、多对一（类似于信箱），当然也包括一对一的情况。
 * ZMQ套接字可以发送消息给多个端点（扇出模型），或从多个端点中接收消息（扇入模型）
 
-![2](https://github.com/haozu/zguide-cn/raw/master/images/chapter2_2.png)
+![2](./images/chapter2_2.png)
 
 所以，向套接字写入一个消息时可能会将消息发送给很多节点，相应的，套接字又会从所有已建立的连接中接收消息。zmq_recv()方法使用了公平队列的算法来决定接收哪个连接的消息。
 
@@ -146,11 +146,11 @@ ZMQ提供了一组单播传输协议（inporc, ipc, tcp），和两个广播协�
 
 只可惜答案并不是这样的。ZMQ不只是一个数据传输的工具，而是在现有通信协议之上建立起来的新架构。它的数据帧和现有的协议并不兼容，如下面是一个HTTP请求和ZMQ请求的对比，同样使用的是TCP/IPC协议：
 
-![3](https://github.com/haozu/zguide-cn/raw/master/images/chapter2_3.png)
+![3](./images/chapter2_3.png)
 
 HTTP请求使用CR-LF（换行符）作为信息帧的间隔，而ZMQ则使用指定长度来定义帧：
 
-![4](https://github.com/haozu/zguide-cn/raw/master/images/chapter2_4.png)
+![4](./images/chapter2_4.png)
 
 所以说，你的确是可以用ZMQ来写一个类似于HTTP协议的东西，但是这并不是HTTP。
 
@@ -298,21 +298,21 @@ ZMQ支持多帧消息，即在一条消息中保存多个消息帧。这在实�
 //  本示例简单地再循环中使用recv函数
 //
 #include "zhelpers.h"
- 
-int main (void) 
+
+int main (void)
 {
     //  准备上下文和套接字
     void *context = zmq_init (1);
- 
+
     //  连接至任务分发器
     void *receiver = zmq_socket (context, ZMQ_PULL);
     zmq_connect (receiver, "tcp://localhost:5557");
- 
+
     //  连接至天气服务
     void *subscriber = zmq_socket (context, ZMQ_SUB);
     zmq_connect (subscriber, "tcp://localhost:5556");
     zmq_setsockopt (subscriber, ZMQ_SUBSCRIBE, "10001 ", 6);
- 
+
     //  处理从两个套接字中接收到的消息
     //  这里我们会优先处理从任务分发器接收到的消息
     while (1) {
@@ -360,20 +360,20 @@ int main (void)
 //  本例使用zmq_poll()函数
 //
 #include "zhelpers.h"
- 
-int main (void) 
+
+int main (void)
 {
     void *context = zmq_init (1);
- 
+
     //  连接任务分发器
     void *receiver = zmq_socket (context, ZMQ_PULL);
     zmq_connect (receiver, "tcp://localhost:5557");
- 
+
     //  连接气象更新服务
     void *subscriber = zmq_socket (context, ZMQ_SUB);
     zmq_connect (subscriber, "tcp://localhost:5556");
     zmq_setsockopt (subscriber, ZMQ_SUBSCRIBE, "10001 ", 6);
- 
+
     //  初始化轮询对象
     zmq_pollitem_t items [] = {
         { receiver, 0, ZMQ_POLLIN, 0 },
@@ -459,7 +459,7 @@ assert (rc == 0);
     zmq_msg_close (&message);
 ```
 
-![5](https://github.com/haozu/zguide-cn/raw/master/images/chapter2_5.png)
+![5](./images/chapter2_5.png)
 
 下面是worker进程的代码，它会打开三个套接字：用于接收任务的PULL、用户发送结果的PUSH、以及用于接收自杀信号的SUB，使用zmq_poll()进行轮询：
 
@@ -471,24 +471,24 @@ assert (rc == 0);
 //  添加发布-订阅消息流，用以接收自杀消息
 //
 #include "zhelpers.h"
- 
-int main (void) 
+
+int main (void)
 {
     void *context = zmq_init (1);
- 
+
     //  用于接收消息的套接字
     void *receiver = zmq_socket (context, ZMQ_PULL);
     zmq_connect (receiver, "tcp://localhost:5557");
- 
+
     //  用户发送消息的套接字
     void *sender = zmq_socket (context, ZMQ_PUSH);
     zmq_connect (sender, "tcp://localhost:5558");
- 
+
     //  用户接收控制消息的套接字
     void *controller = zmq_socket (context, ZMQ_SUB);
     zmq_connect (controller, "tcp://localhost:5559");
     zmq_setsockopt (controller, ZMQ_SUBSCRIBE, "", 0);
- 
+
     //  处理接收到的任务或控制消息
     zmq_pollitem_t items [] = {
         { receiver, 0, ZMQ_POLLIN, 0 },
@@ -501,18 +501,18 @@ int main (void)
         if (items [0].revents & ZMQ_POLLIN) {
             zmq_msg_init (&message);
             zmq_recv (receiver, &message, 0);
- 
+
             //  工作
             s_sleep (atoi ((char *) zmq_msg_data (&message)));
- 
+
             //  发送结果
             zmq_msg_init (&message);
             zmq_send (sender, &message, 0);
- 
+
             //  简单的任务进图指示
             printf (".");
             fflush (stdout);
- 
+
             zmq_msg_close (&message);
         }
         //  任何控制命令都表示自杀
@@ -538,26 +538,26 @@ int main (void)
 //  添加发布-订阅消息流，用以向worker发送自杀信号
 //
 #include "zhelpers.h"
- 
-int main (void) 
+
+int main (void)
 {
     void *context = zmq_init (1);
- 
+
     //  用于接收消息的套接字
     void *receiver = zmq_socket (context, ZMQ_PULL);
     zmq_bind (receiver, "tcp://*:5558");
- 
+
     //  用以发送控制信息的套接字
     void *controller = zmq_socket (context, ZMQ_PUB);
     zmq_bind (controller, "tcp://*:5559");
- 
+
     //  等待任务开始
     char *string = s_recv (receiver);
     free (string);
- 
+
     //  开始计时
     int64_t start_time = s_clock ();
- 
+
     //  确认100个任务处理完毕
     int task_nbr;
     for (task_nbr = 0; task_nbr < 100; task_nbr++) {
@@ -569,15 +569,15 @@ int main (void)
             printf (".");
         fflush (stdout);
     }
-    printf ("总执行时间: %d msec\n", 
+    printf ("总执行时间: %d msec\n",
         (int) (s_clock () - start_time));
- 
+
     //  发送自杀消息给worker
     s_send (controller, "KILL");
- 
+
     //  结束
     sleep (1);              //  等待发送完毕
- 
+
     zmq_close (receiver);
     zmq_close (controller);
     zmq_term (context);
@@ -600,20 +600,20 @@ int main (void)
 #include <zmq.h>
 #include <stdio.h>
 #include <signal.h>
- 
+
 //  ---------------------------------------------------------------------
 //  消息处理
 //
 //  程序开始运行时调用s_catch_signals()函数；
 //  在循环中判断s_interrupted是否为1，是则跳出循环；
 //  很适用于zmq_poll()。
- 
+
 static int s_interrupted = 0;
 static void s_signal_handler (int signal_value)
 {
     s_interrupted = 1;
 }
- 
+
 static void s_catch_signals (void)
 {
     struct sigaction action;
@@ -623,20 +623,20 @@ static void s_catch_signals (void)
     sigaction (SIGINT, &action, NULL);
     sigaction (SIGTERM, &action, NULL);
 }
- 
+
 int main (void)
 {
     void *context = zmq_init (1);
     void *socket = zmq_socket (context, ZMQ_REP);
     zmq_bind (socket, "tcp://*:5555");
- 
+
     s_catch_signals ();
     while (1) {
         //  阻塞式的读取会在收到信号时停止
         zmq_msg_t message;
         zmq_msg_init (&message);
         zmq_recv (socket, &message, 0);
- 
+
         if (s_interrupted) {
             printf ("W: 收到中断消息，程序中止...\n");
             break;
@@ -753,11 +753,11 @@ while (1) {
 
 ZMQ网络也是一样，如果规模不断增长，就一定会需要中间件。ZMQ中，我们称其为“装置”。在构建ZMQ软件的初期，我们会画出几个节点，然后将它们连接起来，不使用中间件：
 
-![6](https://github.com/haozu/zguide-cn/raw/master/images/chapter2_6.png)
+![6](./images/chapter2_6.png)
 
 随后，我们对这个结构不断地进行扩充，将装置放到特定的位置，进一步增加节点数量：
 
-![7](https://github.com/haozu/zguide-cn/raw/master/images/chapter2_7.png)
+![7](./images/chapter2_7.png)
 
 ZMQ装置没有具体的设计规则，但一般会有一组“前端”端点和一组“后端”端点。装置是无状态的，因此可以被广泛地部署在网络中。你可以在进程中启动一个线程来运行装置，或者直接在一个进程中运行装置。ZMQ内部也提供了基本的装置实现可供使用。
 
@@ -778,28 +778,28 @@ ZMQ装置比起其他中间件的优势在于，你可以将它放在网络中�
 //  气象信息代理服务装置
 //
 #include "zhelpers.h"
- 
+
 int main (void)
 {
     void *context = zmq_init (1);
- 
+
     //  订阅气象信息
     void *frontend = zmq_socket (context, ZMQ_SUB);
     zmq_connect (frontend, "tcp://192.168.55.210:5556");
- 
+
     //  转发气象信息
     void *backend = zmq_socket (context, ZMQ_PUB);
     zmq_bind (backend, "tcp://10.1.1.0:8100");
- 
+
     //  订阅所有消息
     zmq_setsockopt (frontend, ZMQ_SUBSCRIBE, "", 0);
- 
+
     //  转发消息
     while (1) {
         while (1) {
             zmq_msg_t message;
             int64_t more;
- 
+
             //  处理所有的消息帧
             zmq_msg_init (&message);
             zmq_recv (frontend, &message, 0);
@@ -821,7 +821,7 @@ int main (void)
 
 我们称这个装置为代理，因为它既是订阅者，又是发布者。这就意味着，添加该装置时不需要更改其他程序的代码，只需让外网订阅者知道新的网络地址即可。
 
-![8](https://github.com/haozu/zguide-cn/raw/master/images/chapter2_8.png)
+![8](./images/chapter2_8.png)
 
 可以注意到，这段程序能够正确处理多帧消息，会将它完整的转发给订阅者。如果我们在发送时不指定ZMQ_SNDMORE选项，那么下游节点收到的消息就可能是破损的。编写装置时应该要保证能够正确地处理多帧消息，否则会造成消息的丢失。
 
@@ -833,7 +833,7 @@ int main (void)
 
 我们有两种方式来连接多个客户端和多个服务端。第一种是让客户端直接和多个服务端进行连接。客户端套接字可以连接至多个服务端套接字，它所发送的请求会通过负载均衡的方式分发给服务端。比如说，有一个客户端连接了三个服务端，A、B、C，客户端产生了R1、R2、R3、R4四个请求，那么，R1和R4会由服务A处理，R2由B处理，R3由C处理：
 
-![9](https://github.com/haozu/zguide-cn/raw/master/images/chapter2_9.png)
+![9](./images/chapter2_9.png)
 
 这种设计的好处在于可以方便地添加客户端，但若要添加服务端，那就得修改每个客户端的配置。如果你有100个客户端，需要添加三个服务端，那么这些客户端都需要重新进行配置，让其知道新服务端的存在。
 
@@ -851,7 +851,7 @@ int main (void)
 
 下方的简图描述了一个请求-应答模式，REQ和ROUTER通信，DEALER再和REP通信。ROUTER和DEALER之间我们则需要进行消息转发：
 
-![10](https://github.com/haozu/zguide-cn/raw/master/images/chapter2_10.png)
+![10](./images/chapter2_10.png)
 
 请求-应答代理会将两个套接字分别绑定到前端和后端，供客户端和服务端套接字连接。在使用该装置之前，还需要对客户端和服务端的代码进行调整。
 
@@ -864,15 +864,15 @@ int main (void)
 //  发送Hello给服务端，等待World应答
 //
 #include "zhelpers.h"
- 
-int main (void) 
+
+int main (void)
 {
     void *context = zmq_init (1);
- 
+
     //  用于和服务端通信的套接字
     void *requester = zmq_socket (context, ZMQ_REQ);
     zmq_connect (requester, "tcp://localhost:5559");
- 
+
     int request_nbr;
     for (request_nbr = 0; request_nbr != 10; request_nbr++) {
         s_send (requester, "Hello");
@@ -897,24 +897,24 @@ int main (void)
 //  接收Hello请求，返回World应答
 //
 #include "zhelpers.h"
- 
-int main (void) 
+
+int main (void)
 {
     void *context = zmq_init (1);
- 
+
     //  用于何客户端通信的套接字
     void *responder = zmq_socket (context, ZMQ_REP);
     zmq_connect (responder, "tcp://localhost:5560");
- 
+
     while (1) {
         //  等待下一个请求
         char *string = s_recv (responder);
         printf ("Received request: [%s]\n", string);
         free (string);
- 
+
         //  做一些“工作”
         sleep (1);
- 
+
         //  返回应答信息
         s_send (responder, "World");
     }
@@ -934,8 +934,8 @@ int main (void)
 //  简易请求-应答代理
 //
 #include "zhelpers.h"
- 
-int main (void) 
+
+int main (void)
 {
     //  准备上下文和套接字
     void *context = zmq_init (1);
@@ -943,7 +943,7 @@ int main (void)
     void *backend  = zmq_socket (context, ZMQ_DEALER);
     zmq_bind (frontend, "tcp://*:5559");
     zmq_bind (backend,  "tcp://*:5560");
- 
+
     //  初始化轮询集合
     zmq_pollitem_t items [] = {
         { frontend, 0, ZMQ_POLLIN, 0 },
@@ -953,7 +953,7 @@ int main (void)
     while (1) {
         zmq_msg_t message;
         int64_t more;           //  检测多帧消息
- 
+
         zmq_poll (items, 2, -1);
         if (items [0].revents & ZMQ_POLLIN) {
             while (1) {
@@ -992,7 +992,7 @@ int main (void)
 
 使用请求-应答代理可以让你的C/S网络结构更易于扩展：客户端不知道服务端的存在，服务端不知道客户端的存在。网络中唯一稳定的组件是中间的代理装置：
 
-![11](https://github.com/haozu/zguide-cn/raw/master/images/chapter2_11.png)
+![11](./images/chapter2_11.png)
 
 #### 内置装置
 
@@ -1018,22 +1018,22 @@ zmq_device (ZMQ_QUEUE, frontend, backend);
 //  功能和请求-应答代理相同，但使用了内置的装置
 //
 #include "zhelpers.h"
- 
-int main (void) 
+
+int main (void)
 {
     void *context = zmq_init (1);
- 
+
     //  客户端套接字
     void *frontend = zmq_socket (context, ZMQ_ROUTER);
     zmq_bind (frontend, "tcp://*:5559");
- 
+
     //  服务端套接字
     void *backend = zmq_socket (context, ZMQ_DEALER);
     zmq_bind (backend, "tcp://*:5560");
- 
+
     //  启动内置装置
     zmq_device (ZMQ_QUEUE, frontend, backend);
- 
+
     //  程序不会运行到这里
     zmq_close (frontend);
     zmq_close (backend);
@@ -1093,13 +1093,13 @@ ZMQ使用的是系统原生的线程机制，而不是某种“绿色线程”�
 //
 #include "zhelpers.h"
 #include <pthread.h>
- 
+
 static void *
 worker_routine (void *context) {
     //  连接至代理的套接字
     void *receiver = zmq_socket (context, ZMQ_REP);
     zmq_connect (receiver, "inproc://workers");
- 
+
     while (1) {
         char *string = s_recv (receiver);
         printf ("Received request: [%s]\n", string);
@@ -1112,19 +1112,19 @@ worker_routine (void *context) {
     zmq_close (receiver);
     return NULL;
 }
- 
+
 int main (void)
 {
     void *context = zmq_init (1);
- 
+
     //  用于和client进行通信的套接字
     void *clients = zmq_socket (context, ZMQ_ROUTER);
     zmq_bind (clients, "tcp://*:5555");
- 
+
     //  用于和worker进行通信的套接字
     void *workers = zmq_socket (context, ZMQ_DEALER);
     zmq_bind (workers, "inproc://workers");
- 
+
     //  启动一个worker池
     int thread_nbr;
     for (thread_nbr = 0; thread_nbr < 5; thread_nbr++) {
@@ -1133,7 +1133,7 @@ int main (void)
     }
     //  启动队列装置
     zmq_device (ZMQ_QUEUE, clients, workers);
- 
+
     //  程序不会运行到这里，但仍进行清理工作
     zmq_close (clients);
     zmq_close (workers);
@@ -1153,7 +1153,7 @@ int main (void)
 
 示例中的“工作”仅仅是1秒钟的停留，我们可以在worker中进行任意的操作，包括与其他节点进行通信。消息的流向是这样的：REQ-ROUTER-queue-DEALER-REP。
 
-![12](https://github.com/haozu/zguide-cn/raw/master/images/chapter2_12.png)
+![12](./images/chapter2_12.png)
 
 ### 线程间的信号传输
 
@@ -1161,7 +1161,7 @@ int main (void)
 
 下面的示例演示了三个线程之间需要如何进行同步：
 
-![13](https://github.com/haozu/zguide-cn/raw/master/images/chapter2_13.png)
+![13](./images/chapter2_13.png)
 
 我们使用PAIR套接字和inproc协议。
 
@@ -1173,7 +1173,7 @@ int main (void)
 //
 #include "zhelpers.h"
 #include <pthread.h>
- 
+
 static void *
 step1 (void *context) {
     //  连接至步骤2，告知我已就绪
@@ -1182,10 +1182,10 @@ step1 (void *context) {
     printf ("步骤1就绪，正在通知步骤2……\n");
     s_send (xmitter, "READY");
     zmq_close (xmitter);
- 
+
     return NULL;
 }
- 
+
 static void *
 step2 (void *context) {
     //  启动步骤1前线绑定至inproc套接字
@@ -1193,37 +1193,37 @@ step2 (void *context) {
     zmq_bind (receiver, "inproc://step2");
     pthread_t thread;
     pthread_create (&thread, NULL, step1, context);
- 
+
     //  等待信号
     char *string = s_recv (receiver);
     free (string);
     zmq_close (receiver);
- 
+
     //  连接至步骤3，告知我已就绪
     void *xmitter = zmq_socket (context, ZMQ_PAIR);
     zmq_connect (xmitter, "inproc://step3");
     printf ("步骤2就绪，正在通知步骤3……\n");
     s_send (xmitter, "READY");
     zmq_close (xmitter);
- 
+
     return NULL;
 }
- 
+
 int main (void)
 {
     void *context = zmq_init (1);
- 
+
     //  启动步骤2前线绑定至inproc套接字
     void *receiver = zmq_socket (context, ZMQ_PAIR);
     zmq_bind (receiver, "inproc://step3");
     pthread_t thread;
     pthread_create (&thread, NULL, step2, context);
- 
+
     //  等待信号
     char *string = s_recv (receiver);
     free (string);
     zmq_close (receiver);
- 
+
     printf ("测试成功！\n");
     zmq_term (context);
     return 0;
@@ -1269,22 +1269,22 @@ int main (void)
 //  发布者 - 同步版
 //
 #include "zhelpers.h"
- 
+
 //  等待10个订阅者连接
 #define SUBSCRIBERS_EXPECTED  10
- 
+
 int main (void)
 {
     void *context = zmq_init (1);
- 
+
     //  用于和客户端通信的套接字
     void *publisher = zmq_socket (context, ZMQ_PUB);
     zmq_bind (publisher, "tcp://*:5561");
- 
+
     //  用于接收信号的套接字
     void *syncservice = zmq_socket (context, ZMQ_REP);
     zmq_bind (syncservice, "tcp://*:5562");
- 
+
     //  接收订阅者的就绪信号
     printf ("正在等待订阅者就绪\n");
     int subscribers = 0;
@@ -1301,9 +1301,9 @@ int main (void)
     int update_nbr;
     for (update_nbr = 0; update_nbr < 1000000; update_nbr++)
         s_send (publisher, "Rhubarb");
- 
+
     s_send (publisher, "END");
- 
+
     zmq_close (publisher);
     zmq_close (syncservice);
     zmq_term (context);
@@ -1311,7 +1311,7 @@ int main (void)
 }
 ```
 
-![14](https://github.com/haozu/zguide-cn/raw/master/images/chapter2_14.png)
+![14](./images/chapter2_14.png)
 
 以下是订阅者的代码：
 
@@ -1322,30 +1322,30 @@ int main (void)
 //  订阅者 - 同步班
 //
 #include "zhelpers.h"
- 
+
 int main (void)
 {
     void *context = zmq_init (1);
- 
+
     //  一、连接SUB套接字
     void *subscriber = zmq_socket (context, ZMQ_SUB);
     zmq_connect (subscriber, "tcp://localhost:5561");
     zmq_setsockopt (subscriber, ZMQ_SUBSCRIBE, "", 0);
- 
+
     //  ZMQ太快了，我们延迟一会儿……
     sleep (1);
- 
+
     //  二、与发布者进行同步
     void *syncclient = zmq_socket (context, ZMQ_REQ);
     zmq_connect (syncclient, "tcp://localhost:5562");
- 
+
     //  - 发送请求
     s_send (syncclient, "");
- 
+
     //  - 等待应答
     char *string = s_recv (syncclient);
     free (string);
- 
+
     //  三、处理消息
     int update_nbr = 0;
     while (1) {
@@ -1358,7 +1358,7 @@ int main (void)
         update_nbr++;
     }
     printf ("收到 %d 条消息\n", update_nbr);
- 
+
     zmq_close (subscriber);
     zmq_close (syncclient);
     zmq_term (context);
@@ -1432,7 +1432,7 @@ ZMQ的多段消息能够很好地支持零拷贝。在传统消息系统中，�
 
 这里有两个套接字正在欢快地传送着气象信息：
 
-![15](https://github.com/haozu/zguide-cn/raw/master/images/chapter2_15.png)
+![15](./images/chapter2_15.png)
 
 如果接收方（SUB、PULL、REQ）指定了套接字标识，当它们断开网络时，发送方（PUB、PUSH、REP）会为它们缓存信息，直至达到阈值（HWM）。这里发送方不需要有套接字标识。
 
@@ -1442,7 +1442,7 @@ ZMQ的多段消息能够很好地支持零拷贝。在传统消息系统中，�
 
 在ZMQ内部，两个套接字相连时会先交换各自的标识。如果发生对方没有ID，则会自行生成一个用以标识对方：
 
-![16](https://github.com/haozu/zguide-cn/raw/master/images/chapter2_16.png)
+![16](./images/chapter2_16.png)
 
 但套接字也可以告知对方自己的标识，那当它们第二次连接时，就能知道对方的身份：
 
@@ -1498,7 +1498,7 @@ zmq_setsockopt (socket, ZMQ_IDENTITY, "Lucy", 4);
 
 这是发布-订阅模式中一个带有信封的消息：
 
-![17](https://github.com/haozu/zguide-cn/raw/master/images/chapter2_17.png)
+![17](./images/chapter2_17.png)
 
 我们回忆一下，发布-订阅模式中，消息的接收是根据订阅信息来的，也就是消息的前缀。将这个前缀放入单独的消息帧，可以让匹配变得非常明显。因为不会有一个应用程序恰好只匹配了一部分数据。
 
@@ -1512,14 +1512,14 @@ zmq_setsockopt (socket, ZMQ_IDENTITY, "Lucy", 4);
 //  s_sendmore()函数也是zhelpers.h提供的
 //
 #include "zhelpers.h"
- 
+
 int main (void)
 {
     //  准备上下文和PUB套接字
     void *context = zmq_init (1);
     void *publisher = zmq_socket (context, ZMQ_PUB);
     zmq_bind (publisher, "tcp://*:5563");
- 
+
     while (1) {
         //  发布两条消息，A类型和B类型
         s_sendmore (publisher, "A");
@@ -1544,7 +1544,7 @@ int main (void)
 //  发布-订阅消息信封 - 订阅者
 //
 #include "zhelpers.h"
- 
+
 int main (void)
 {
     //  准备上下文和SUB套接字
@@ -1552,7 +1552,7 @@ int main (void)
     void *subscriber = zmq_socket (context, ZMQ_SUB);
     zmq_connect (subscriber, "tcp://localhost:5563");
     zmq_setsockopt (subscriber, ZMQ_SUBSCRIBE, "B", 1);
- 
+
     while (1) {
         //  读取消息信封
         char *address = s_recv (subscriber);
@@ -1583,7 +1583,7 @@ int main (void)
 
 如果你订阅了多个套接字，又想知道这些套接字的标识，从而通过另一个套接字来发送消息给它们（这个用例很常见），你可以让发布者创建一条含有三帧的消息：
 
-![18](https://github.com/haozu/zguide-cn/raw/master/images/chapter2_18.png)
+![18](./images/chapter2_18.png)
 
 ### （半）持久订阅者和阈值（HWM）
 
@@ -1612,23 +1612,23 @@ int main (void)
 //  发布者 - 连接持久化的订阅者
 //
 #include "zhelpers.h"
- 
-int main (void) 
+
+int main (void)
 {
     void *context = zmq_init (1);
- 
+
     //  订阅者会发送已就绪的消息
     void *sync = zmq_socket (context, ZMQ_PULL);
     zmq_bind (sync, "tcp://*:5564");
- 
+
     //  使用该套接字发布消息
     void *publisher = zmq_socket (context, ZMQ_PUB);
     zmq_bind (publisher, "tcp://*:5565");
- 
+
     //  等待同步消息
     char *string = s_recv (sync);
     free (string);
- 
+
     //  广播10条消息，一秒一条
     int update_nbr;
     for (update_nbr = 0; update_nbr < 10; update_nbr++) {
@@ -1638,7 +1638,7 @@ int main (void)
         sleep (1);
     }
     s_send (publisher, "END");
- 
+
     zmq_close (sync);
     zmq_close (publisher);
     zmq_term (context);
@@ -1655,22 +1655,22 @@ int main (void)
 //  持久化的订阅者
 //
 #include "zhelpers.h"
- 
+
 int main (void)
 {
     void *context = zmq_init (1);
- 
+
     //  连接SUB套接字
     void *subscriber = zmq_socket (context, ZMQ_SUB);
     zmq_setsockopt (subscriber, ZMQ_IDENTITY, "Hello", 5);
     zmq_setsockopt (subscriber, ZMQ_SUBSCRIBE, "", 0);
     zmq_connect (subscriber, "tcp://localhost:5565");
- 
+
     //  发送同步消息
     void *sync = zmq_socket (context, ZMQ_PUSH);
     zmq_connect (sync, "tcp://localhost:5564");
     s_send (sync, "");
- 
+
     //  获取更新，并按指令退出
     while (1) {
         char *string = s_recv (subscriber);
@@ -1753,31 +1753,31 @@ zmq_setsockopt (publisher, ZMQ_SWAP, &swap, sizeof (swap));
 //  发布者 - 连接持久化订阅者
 //
 #include "zhelpers.h"
- 
-int main (void) 
+
+int main (void)
 {
     void *context = zmq_init (1);
- 
+
     //  订阅者会告知我们它已就绪
     void *sync = zmq_socket (context, ZMQ_PULL);
     zmq_bind (sync, "tcp://*:5564");
- 
+
     //  使用该套接字发送消息
     void *publisher = zmq_socket (context, ZMQ_PUB);
- 
+
     //  避免慢持久化订阅者消息溢出的问题
     uint64_t hwm = 1;
     zmq_setsockopt (publisher, ZMQ_HWM, &hwm, sizeof (hwm));
- 
+
     //  设置交换区大小，供所有订阅者使用
     uint64_t swap = 25000000;
     zmq_setsockopt (publisher, ZMQ_SWAP, &swap, sizeof (swap));
     zmq_bind (publisher, "tcp://*:5565");
- 
+
     //  等待同步消息
     char *string = s_recv (sync);
     free (string);
- 
+
     //  发布10条消息，一秒一条
     int update_nbr;
     for (update_nbr = 0; update_nbr < 10; update_nbr++) {
@@ -1787,7 +1787,7 @@ int main (void)
         sleep (1);
     }
     s_send (publisher, "END");
- 
+
     zmq_close (sync);
     zmq_close (publisher);
     zmq_term (context);
@@ -1822,4 +1822,3 @@ ZMQ就像是一盒积木，只要你有足够的想象力，就可以用它组�
 这种高可扩、高弹性的架构一定会打开你的眼界。其实这并不是ZMQ原创的，早就有像[Erlang](http://www.erlang.org/)这样的[基于流的编程语言](http://en.wikipedia.org/wiki/Flow-based_programming)已经能够做到了，只是ZMQ提供了更为友善和易用的接口。
 
 正如[Gonzo Diethelm](http://permalink.gmane.org/gmane.network.zeromq.devel/2145)所言：“我想用一句话来总结，‘如果ZMQ不存在，那它就应该被发明出来。’作为一个有着多年相关工作经验的人，ZMQ太能引起我的共鸣了。我只能说，‘这就是我想要的！’”
-
